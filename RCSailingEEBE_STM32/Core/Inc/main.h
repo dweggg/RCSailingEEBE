@@ -57,6 +57,38 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define ANALOG1_Pin GPIO_PIN_1
+#define ANALOG1_GPIO_Port GPIOA
+#define ANALOG2_Pin GPIO_PIN_2
+#define ANALOG2_GPIO_Port GPIOA
+#define ANALOG3_Pin GPIO_PIN_3
+#define ANALOG3_GPIO_Port GPIOA
+#define ANALOG4_Pin GPIO_PIN_4
+#define ANALOG4_GPIO_Port GPIOA
+#define IN1_Pin GPIO_PIN_6
+#define IN1_GPIO_Port GPIOA
+#define IN2_Pin GPIO_PIN_7
+#define IN2_GPIO_Port GPIOA
+#define IN3_Pin GPIO_PIN_0
+#define IN3_GPIO_Port GPIOB
+#define IN4_Pin GPIO_PIN_1
+#define IN4_GPIO_Port GPIOB
+#define IMU_CLK_Pin GPIO_PIN_8
+#define IMU_CLK_GPIO_Port GPIOA
+#define TEL_TX_Pin GPIO_PIN_9
+#define TEL_TX_GPIO_Port GPIOA
+#define TEL_RX_Pin GPIO_PIN_10
+#define TEL_RX_GPIO_Port GPIOA
+#define IMU_SDA_Pin GPIO_PIN_4
+#define IMU_SDA_GPIO_Port GPIOB
+#define OUT1_Pin GPIO_PIN_6
+#define OUT1_GPIO_Port GPIOB
+#define OUT2_Pin GPIO_PIN_7
+#define OUT2_GPIO_Port GPIOB
+#define OUT3_Pin GPIO_PIN_8
+#define OUT3_GPIO_Port GPIOB
+#define OUT4_Pin GPIO_PIN_9
+#define OUT4_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

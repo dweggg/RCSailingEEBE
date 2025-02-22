@@ -25,6 +25,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "CONTROL.h"
+#include "ANALOG.h"
+#include "IMU.h"
+#include "TELEMETRY.h"
+
+#include "tim.h"
+#include "stm32f4xx_it.h"
 
 /* USER CODE END Includes */
 
@@ -35,6 +42,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define CONTROL_DELAY 10
+#define TELEMETRY_DELAY 500
+#define IMU_DELAY 25
+#define ADC_DELAY 25
 
 /* USER CODE END PD */
 
@@ -45,7 +56,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+uint32_t idle_dummy, control_dummy, telemetry_dummy, imu_dummy, adc_dummy;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -54,6 +65,54 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for control_task */
+osThreadId_t control_taskHandle;
+const osThreadAttr_t control_task_attributes = {
+  .name = "control_task",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for imu_read_task */
+osThreadId_t imu_read_taskHandle;
+const osThreadAttr_t imu_read_task_attributes = {
+  .name = "imu_read_task",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for adc_read_task */
+osThreadId_t adc_read_taskHandle;
+const osThreadAttr_t adc_read_task_attributes = {
+  .name = "adc_read_task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for telemetry_task */
+osThreadId_t telemetry_taskHandle;
+const osThreadAttr_t telemetry_task_attributes = {
+  .name = "telemetry_task",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for radioQueue */
+osMessageQueueId_t radioQueueHandle;
+const osMessageQueueAttr_t radioQueue_attributes = {
+  .name = "radioQueue"
+};
+/* Definitions for adcQueue */
+osMessageQueueId_t adcQueueHandle;
+const osMessageQueueAttr_t adcQueue_attributes = {
+  .name = "adcQueue"
+};
+/* Definitions for imuQueue */
+osMessageQueueId_t imuQueueHandle;
+const osMessageQueueAttr_t imuQueue_attributes = {
+  .name = "imuQueue"
+};
+/* Definitions for telemetryQueue */
+osMessageQueueId_t telemetryQueueHandle;
+const osMessageQueueAttr_t telemetryQueue_attributes = {
+  .name = "telemetryQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -61,8 +120,42 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
+void _control_task(void *argument);
+void _imu_read_task(void *argument);
+void _adc_read_task(void *argument);
+void _telemetry_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* Hook prototypes */
+void configureTimerForRunTimeStats(void);
+unsigned long getRunTimeCounterValue(void);
+
+/* USER CODE BEGIN 1 */
+/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
+__weak void configureTimerForRunTimeStats(void)
+{
+	HAL_TIM_Base_Start_IT(&htim11);
+}
+
+extern volatile unsigned long ulHighFrequencyTimerTicks;
+__weak unsigned long getRunTimeCounterValue(void)
+{
+	return ulHighFrequencyTimerTicks;
+}
+/* USER CODE END 1 */
+
+/* USER CODE BEGIN PREPOSTSLEEP */
+__weak void PreSleepProcessing(uint32_t ulExpectedIdleTime)
+{
+/* place for user code */
+}
+
+__weak void PostSleepProcessing(uint32_t ulExpectedIdleTime)
+{
+/* place for user code */
+}
+/* USER CODE END PREPOSTSLEEP */
 
 /**
   * @brief  FreeRTOS initialization
@@ -71,6 +164,12 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
+
+	// Start all 4 input captures
+	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);
+	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
 
   /* USER CODE END Init */
 
@@ -86,6 +185,19 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of radioQueue */
+  radioQueueHandle = osMessageQueueNew (4, sizeof(uint32_t), &radioQueue_attributes);
+
+  /* creation of adcQueue */
+  adcQueueHandle = osMessageQueueNew (4, sizeof(float), &adcQueue_attributes);
+
+  /* creation of imuQueue */
+  imuQueueHandle = osMessageQueueNew (12, sizeof(float), &imuQueue_attributes);
+
+  /* creation of telemetryQueue */
+  telemetryQueueHandle = osMessageQueueNew (32, sizeof(float), &telemetryQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -93,6 +205,18 @@ void MX_FREERTOS_Init(void) {
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of control_task */
+  control_taskHandle = osThreadNew(_control_task, NULL, &control_task_attributes);
+
+  /* creation of imu_read_task */
+  imu_read_taskHandle = osThreadNew(_imu_read_task, NULL, &imu_read_task_attributes);
+
+  /* creation of adc_read_task */
+  adc_read_taskHandle = osThreadNew(_adc_read_task, NULL, &adc_read_task_attributes);
+
+  /* creation of telemetry_task */
+  telemetry_taskHandle = osThreadNew(_telemetry_task, NULL, &telemetry_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -117,9 +241,86 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	idle_dummy++; // Keep incrementing the dummy variable
+    osDelay(1); // A small delay to avoid task starvation
   }
   /* USER CODE END StartDefaultTask */
+}
+
+/* USER CODE BEGIN Header__control_task */
+/**
+* @brief Function implementing the control_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header__control_task */
+void _control_task(void *argument)
+{
+  /* USER CODE BEGIN _control_task */
+  for(;;)
+  {
+	control_dummy++;
+    control(); // Execute control function
+    osDelay(CONTROL_DELAY);
+  }
+  /* USER CODE END _control_task */
+}
+
+/* USER CODE BEGIN Header__imu_read_task */
+/**
+* @brief Function implementing the imu_read_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header__imu_read_task */
+void _imu_read_task(void *argument)
+{
+  /* USER CODE BEGIN _imu_read_task */
+  for(;;)
+  {
+	imu_dummy++;
+    imu_read(); // Execute imu read function
+    osDelay(IMU_DELAY);
+  }
+  /* USER CODE END _imu_read_task */
+}
+
+/* USER CODE BEGIN Header__adc_read_task */
+/**
+* @brief Function implementing the adc_read_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header__adc_read_task */
+void _adc_read_task(void *argument)
+{
+  /* USER CODE BEGIN _adc_read_task */
+  for(;;)
+  {
+	adc_dummy++;
+    adc_read(); // Execute ADC read function
+    osDelay(ADC_DELAY);
+  }
+  /* USER CODE END _adc_read_task */
+}
+
+/* USER CODE BEGIN Header__telemetry_task */
+/**
+* @brief Function implementing the telemetry_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header__telemetry_task */
+void _telemetry_task(void *argument)
+{
+  /* USER CODE BEGIN _telemetry_task */
+  for(;;)
+  {
+	telemetry_dummy++;
+    telemetry(); // Execute telemetry function
+    osDelay(TELEMETRY_DELAY);
+  }
+  /* USER CODE END _telemetry_task */
 }
 
 /* Private application code --------------------------------------------------*/
