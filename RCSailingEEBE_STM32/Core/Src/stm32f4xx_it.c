@@ -22,6 +22,8 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "cmsis_os.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 volatile unsigned long ulHighFrequencyTimerTicks = 0;
+extern osMessageQueueId_t radioQueueHandle; // Declare the queue handle
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -219,5 +222,69 @@ void DMA2_Stream0_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+volatile uint32_t ic_rising[4] = {0};  // Stores rising edge timestamps
+volatile uint32_t widths[4] = {0};  // Stores pulse width
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	// TODO: Handle overflow
+    uint32_t captured_value = 0;
+
+    if (htim->Instance == TIM3) // Ensure it’s TIM3
+    {
+        if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+        {
+            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim)) // Falling edge detected
+            {
+            	widths[0] = captured_value - ic_rising[0];
+                osMessageQueuePut(radioQueueHandle, (const void *)&widths[0], 0, 0);
+            }
+            else // Rising edge detected
+            {
+                ic_rising[0] = captured_value;
+            }
+        }
+        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
+        {
+            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim)) // Falling edge
+            {
+            	widths[1] = captured_value - ic_rising[1];
+                osMessageQueuePut(radioQueueHandle, (const void *)&widths[1], 0, 0);
+            }
+            else // Rising edge
+            {
+                ic_rising[1] = captured_value;
+            }
+        }
+        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
+        {
+            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim))
+            {
+            	widths[2] = captured_value - ic_rising[2];
+                osMessageQueuePut(radioQueueHandle, (const void *)&widths[2], 0, 0);
+            }
+            else
+            {
+                ic_rising[2] = captured_value;
+            }
+        }
+        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+        {
+            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
+            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim))
+            {
+            	widths[3] = captured_value - ic_rising[3];
+                osMessageQueuePut(radioQueueHandle, (const void *)&widths[3], 0, 0);
+            }
+            else
+            {
+                ic_rising[3] = captured_value;
+            }
+        }
+    }
+}
 
 /* USER CODE END 1 */

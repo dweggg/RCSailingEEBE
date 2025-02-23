@@ -32,6 +32,8 @@
 
 #include "tim.h"
 #include "stm32f4xx_it.h"
+#include "queue.h"
+#include "adc.h"
 
 /* USER CODE END Includes */
 
@@ -187,19 +189,25 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of radioQueue */
-  radioQueueHandle = osMessageQueueNew (4, sizeof(uint32_t), &radioQueue_attributes);
+  radioQueueHandle = osMessageQueueNew (1, sizeof(RadioData_t), &radioQueue_attributes);
 
   /* creation of adcQueue */
-  adcQueueHandle = osMessageQueueNew (4, sizeof(float), &adcQueue_attributes);
+  adcQueueHandle = osMessageQueueNew (1, sizeof(AdcData_t), &adcQueue_attributes);
 
   /* creation of imuQueue */
-  imuQueueHandle = osMessageQueueNew (12, sizeof(float), &imuQueue_attributes);
+  imuQueueHandle = osMessageQueueNew (1, sizeof(ImuData_t), &imuQueue_attributes);
 
   /* creation of telemetryQueue */
-  telemetryQueueHandle = osMessageQueueNew (32, sizeof(float), &telemetryQueue_attributes);
+  telemetryQueueHandle = osMessageQueueNew (1, sizeof(TelemetryData_t), &telemetryQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+
+  // Allowing the kernel-aware debugger to get to know our queues
+  vQueueAddToRegistry( radioQueueHandle, "radioQueue" );
+  vQueueAddToRegistry( adcQueueHandle, "adcQueue" );
+  vQueueAddToRegistry( imuQueueHandle, "imuQueue" );
+  vQueueAddToRegistry( telemetryQueueHandle, "telemetryQueue" );
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
