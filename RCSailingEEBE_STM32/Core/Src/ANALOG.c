@@ -29,13 +29,13 @@ void adc_read(void) {
     HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_raw_readings, 4);
 
     // Create a struct to hold the processed ADC data
-    AdcData_t adcData;
-    adcData.windDirection = ((float)adc_raw_readings[0] * windDirectionGain) - windDirectionOffset;
-    adcData.batteryVoltage = ((float)adc_raw_readings[1] * batteryVoltageGain) - batteryVoltageOffset;
-    adcData.extra1 = ((float)adc_raw_readings[2] * extra1Gain) - extra1Offset;
-    adcData.extra2 = ((float)adc_raw_readings[3] * extra2Gain) - extra2Offset;
+    AdcData_t adcDataSent;
+    adcDataSent.windDirection = ((float)adc_raw_readings[0] * windDirectionGain) - windDirectionOffset;
+    adcDataSent.batteryVoltage = ((float)adc_raw_readings[1] * batteryVoltageGain) - batteryVoltageOffset;
+    adcDataSent.extra1 = ((float)adc_raw_readings[2] * extra1Gain) - extra1Offset;
+    adcDataSent.extra2 = ((float)adc_raw_readings[3] * extra2Gain) - extra2Offset;
 
     // Send the struct to the ADC queue, overwriting previous value if full
-    osMessageQueuePut(adcQueueHandle, &adcData, 0, 0);
+    osMessageQueuePut(adcQueueHandle, &adcDataSent, 0, 0);
 }
 

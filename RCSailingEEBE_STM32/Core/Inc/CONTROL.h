@@ -10,11 +10,21 @@
 #include <stdint.h>
 
 typedef struct {
-	uint16_t width1;
+	uint32_t width1;
 	uint32_t width2;
 	uint32_t width3;
 	uint32_t width4;
 } RadioData_t;
+
+
+typedef struct {
+	float ctrl1;
+	float ctrl2;
+	float ctrl3;
+	float ctrl4;
+	float ctrl5;
+	float ctrl6;
+} ControlData_t;
 
 void control(void);
 

@@ -1,1 +1,5 @@
-../Core/Src/IMU.c:10:6:imu_read	1
+../Core/Inc/bno055_stm32.h:20:6:bno055_assignI2C	1
+../Core/Inc/bno055_stm32.h:24:6:bno055_delay	1
+../Core/Inc/bno055_stm32.h:32:6:bno055_writeData	23
+../Core/Inc/bno055_stm32.h:96:6:bno055_readData	1
+../Core/Src/IMU.c:13:6:imu_read	1

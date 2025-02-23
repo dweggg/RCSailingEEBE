@@ -13,17 +13,17 @@ typedef struct {
     float pitch;
     float yaw;
 
-    float aX;
-    float aY;
-    float aZ;
+    float accelX;
+    float accelY;
+    float accelZ;
 
-    float wX;
-    float wY;
-    float wZ;
+    float gyroX;
+    float gyroY;
+    float gyroZ;
 
-    float muX;
-    float muY;
-    float muZ;
+    float magX;
+    float magY;
+    float magZ;
 } ImuData_t;
 
 void imu_read(void);

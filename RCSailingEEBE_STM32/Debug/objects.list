@@ -3,6 +3,7 @@
 "./Core/Src/IMU.o"
 "./Core/Src/TELEMETRY.o"
 "./Core/Src/adc.o"
+"./Core/Src/bno055.o"
 "./Core/Src/dma.o"
 "./Core/Src/freertos.o"
 "./Core/Src/gpio.o"
