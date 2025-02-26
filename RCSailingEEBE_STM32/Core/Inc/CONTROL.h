@@ -10,10 +10,10 @@
 #include <stdint.h>
 
 typedef struct {
-	uint32_t width1;
-	uint32_t width2;
-	uint32_t width3;
-	uint32_t width4;
+	int16_t ch1;
+	int16_t ch2;
+	int16_t ch3;
+	int16_t ch4;
 } RadioData_t;
 
 

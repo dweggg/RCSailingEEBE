@@ -79,13 +79,13 @@ void telemetry(void) {
 			// Get Radio Data
 			osMessageQueueGet(radioQueueHandle, (void*)&radioDataReceived, NULL, osWaitForever);
 			// Send Radio Data
-			snprintf(uartBuffer, sizeof(uartBuffer), "RW1: %.2f\r\n", (float)radioDataReceived.width1);
+			snprintf(uartBuffer, sizeof(uartBuffer), "RW1: %.2f\r\n", (float)radioDataReceived.ch1);
 			HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-			snprintf(uartBuffer, sizeof(uartBuffer), "RW2: %.2f\r\n", (float)radioDataReceived.width2);
+			snprintf(uartBuffer, sizeof(uartBuffer), "RW2: %.2f\r\n", (float)radioDataReceived.ch2);
 			HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-			snprintf(uartBuffer, sizeof(uartBuffer), "RW3: %.2f\r\n", (float)radioDataReceived.width3);
+			snprintf(uartBuffer, sizeof(uartBuffer), "RW3: %.2f\r\n", (float)radioDataReceived.ch3);
 			HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-			snprintf(uartBuffer, sizeof(uartBuffer), "RW4: %.2f\r\n", (float)radioDataReceived.width4);
+			snprintf(uartBuffer, sizeof(uartBuffer), "RW4: %.2f\r\n", (float)radioDataReceived.ch4);
 			HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
 
         }

@@ -49,6 +49,17 @@
 #define IMU_DELAY 25
 #define ADC_DELAY 25
 
+#define INCLUDE_vTaskList               1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+__attribute__((used))
+const int uxTopUsedPriority = configMAX_PRIORITIES - 1;
+#ifdef __cplusplus
+}
+#endif
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -173,6 +184,7 @@ void MX_FREERTOS_Init(void) {
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
 
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */

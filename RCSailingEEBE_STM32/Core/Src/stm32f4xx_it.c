@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "cmsis_os.h"
+#include "CONTROL.h"
 
 /* USER CODE END Includes */
 
@@ -221,67 +222,134 @@ void DMA2_Stream0_IRQHandler(void)
   /* USER CODE END DMA2_Stream0_IRQn 1 */
 }
 
-/* USER CODE BEGIN 1 */
-volatile uint32_t ic_rising[4] = {0};  // Stores rising edge timestamps
-volatile uint32_t widths[4] = {0};  // Stores pulse width
 
+/* USER CODE BEGIN 1 */
+
+
+/* Global variables for channel 1 */
+volatile uint8_t ic1_rising = 1;  // 1: next capture is rising edge; 0: falling edge expected
+volatile int16_t ic1_rising_val = 0;
+volatile int16_t pulseWidth_CH1 = 0;
+
+/* Global variables for channel 2 */
+volatile uint8_t ic2_rising = 1;
+volatile int16_t ic2_rising_val = 0;
+volatile int16_t pulseWidth_CH2 = 0;
+
+/* Global variables for channel 3 */
+volatile uint8_t ic3_rising = 1;
+volatile int16_t ic3_rising_val = 0;
+volatile int16_t pulseWidth_CH3 = 0;
+
+/* Global variables for channel 4 */
+volatile uint8_t ic4_rising = 1;
+volatile int16_t ic4_rising_val = 0;
+volatile int16_t pulseWidth_CH4 = 0;
+
+
+/* Helper function to send updated data to the queue */
+static void SendRadioData(void)
+{
+    RadioData_t radioData;
+    radioData.ch1 = pulseWidth_CH1;
+    radioData.ch2 = pulseWidth_CH2;
+    radioData.ch3 = pulseWidth_CH3;
+    radioData.ch4 = pulseWidth_CH4;
+    /* Non-blocking put into the queue */
+    osMessageQueuePut(radioQueueHandle, &radioData, 0, 0);
+}
+
+/* Input capture callback handling all four channels */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	// TODO: Handle overflow
-    uint32_t captured_value = 0;
-
-    if (htim->Instance == TIM3) // Ensure it’s TIM3
+    if (htim->Instance == TIM3)
     {
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
         {
-            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim)) // Falling edge detected
+            if (ic1_rising)
             {
-            	widths[0] = captured_value - ic_rising[0];
-                osMessageQueuePut(radioQueueHandle, (const void *)&widths[0], 0, 0);
+                /* Capture rising edge time for CH1 */
+                ic1_rising_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+                ic1_rising = 0;
+                /* Switch polarity to falling edge */
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
             }
-            else // Rising edge detected
+            else
             {
-                ic_rising[0] = captured_value;
+                /* Capture falling edge time for CH1 */
+            	int16_t falling_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+                if (falling_val >= ic1_rising_val)
+                    pulseWidth_CH1 = falling_val - ic1_rising_val;
+                else
+                    pulseWidth_CH1 = (htim->Init.Period - ic1_rising_val) + falling_val + 1;
+                ic1_rising = 1;
+                /* Switch back to rising edge capture */
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+                /* Send updated data */
+                SendRadioData();
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
         {
-            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim)) // Falling edge
+            if (ic2_rising)
             {
-            	widths[1] = captured_value - ic_rising[1];
-                osMessageQueuePut(radioQueueHandle, (const void *)&widths[1], 0, 0);
+                /* Capture rising edge time for CH2 */
+                ic2_rising_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+                ic2_rising = 0;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
             }
-            else // Rising edge
+            else
             {
-                ic_rising[1] = captured_value;
+            	int16_t falling_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+                if (falling_val >= ic2_rising_val)
+                    pulseWidth_CH2 = falling_val - ic2_rising_val;
+                else
+                    pulseWidth_CH2 = (htim->Init.Period - ic2_rising_val) + falling_val + 1;
+                ic2_rising = 1;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+                SendRadioData();
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
         {
-            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
-            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim))
+            if (ic3_rising)
             {
-            	widths[2] = captured_value - ic_rising[2];
-                osMessageQueuePut(radioQueueHandle, (const void *)&widths[2], 0, 0);
+                /* Capture rising edge time for CH3 */
+                ic3_rising_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+                ic3_rising = 0;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_3, TIM_INPUTCHANNELPOLARITY_FALLING);
             }
             else
             {
-                ic_rising[2] = captured_value;
+            	int16_t falling_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+                if (falling_val >= ic3_rising_val)
+                    pulseWidth_CH3 = falling_val - ic3_rising_val;
+                else
+                    pulseWidth_CH3 = (htim->Init.Period - ic3_rising_val) + falling_val + 1;
+                ic3_rising = 1;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_3, TIM_INPUTCHANNELPOLARITY_RISING);
+                SendRadioData();
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
         {
-            captured_value = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
-            if (__HAL_TIM_IS_TIM_COUNTING_DOWN(htim))
+            if (ic4_rising)
             {
-            	widths[3] = captured_value - ic_rising[3];
-                osMessageQueuePut(radioQueueHandle, (const void *)&widths[3], 0, 0);
+                /* Capture rising edge time for CH4 */
+                ic4_rising_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
+                ic4_rising = 0;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_FALLING);
             }
             else
             {
-                ic_rising[3] = captured_value;
+            	int16_t falling_val = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
+                if (falling_val >= ic4_rising_val)
+                    pulseWidth_CH4 = falling_val - ic4_rising_val;
+                else
+                    pulseWidth_CH4 = (htim->Init.Period - ic4_rising_val) + falling_val + 1;
+                ic4_rising = 1;
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
+                SendRadioData();
             }
         }
     }

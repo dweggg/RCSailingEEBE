@@ -1,1 +1,2 @@
-../Core/Src/CONTROL.c:10:6:control	4	static
+../Core/Src/CONTROL.c:25:6:control	24	static
+../Core/Src/CONTROL.c:56:7:map	32	static
