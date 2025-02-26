@@ -3,8 +3,8 @@
 ../Core/Src/freertos.c:162:13:PreSleepProcessing	1
 ../Core/Src/freertos.c:167:13:PostSleepProcessing	1
 ../Core/Src/freertos.c:178:6:MX_FREERTOS_Init	1
-../Core/Src/freertos.c:258:6:StartDefaultTask	1
-../Core/Src/freertos.c:277:6:_control_task	1
-../Core/Src/freertos.c:296:6:_imu_read_task	1
-../Core/Src/freertos.c:315:6:_adc_read_task	1
-../Core/Src/freertos.c:334:6:_telemetry_task	1
+../Core/Src/freertos.c:261:6:StartDefaultTask	1
+../Core/Src/freertos.c:280:6:_control_task	1
+../Core/Src/freertos.c:299:6:_imu_read_task	1
+../Core/Src/freertos.c:318:6:_adc_read_task	1
+../Core/Src/freertos.c:337:6:_telemetry_task	1

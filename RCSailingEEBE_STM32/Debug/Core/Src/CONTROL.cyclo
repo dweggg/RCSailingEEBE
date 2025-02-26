@@ -1,2 +1,4 @@
-../Core/Src/CONTROL.c:25:6:control	8
-../Core/Src/CONTROL.c:56:7:map	1
+../Core/Src/CONTROL.c:52:7:map_float	1
+../Core/Src/CONTROL.c:57:6:handleMappingMode	13
+../Core/Src/CONTROL.c:80:6:handleBypassMode	9
+../Core/Src/CONTROL.c:143:6:control	4
