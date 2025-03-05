@@ -34,6 +34,7 @@
 #include "stm32f4xx_it.h"
 #include "queue.h"
 #include "adc.h"
+#include "i2c.h"
 
 /* USER CODE END Includes */
 
@@ -46,8 +47,8 @@
 /* USER CODE BEGIN PD */
 #define CONTROL_DELAY 10
 #define TELEMETRY_DELAY 500
-#define IMU_DELAY 25
-#define ADC_DELAY 25
+#define IMU_DELAY 10
+#define ADC_DELAY 10
 
 #define INCLUDE_vTaskList               1
 

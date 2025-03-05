@@ -23,13 +23,13 @@ float extra1Offset = 0.0f;
 
 float extra2Gain = 1.0f;
 float extra2Offset = 0.0f;
+AdcData_t adcDataSent;
 
 void adc_read(void) {
     // Start ADC conversion using DMA
     HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_raw_readings, 4);
 
     // Create a struct to hold the processed ADC data
-    AdcData_t adcDataSent;
     adcDataSent.windDirection = ((float)adc_raw_readings[0] * windDirectionGain) - windDirectionOffset;
     adcDataSent.batteryVoltage = ((float)adc_raw_readings[1] * batteryVoltageGain) - batteryVoltageOffset;
     adcDataSent.extra1 = ((float)adc_raw_readings[2] * extra1Gain) - extra1Offset;

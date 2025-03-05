@@ -8,6 +8,8 @@
 #ifndef INC_IMU_H_
 #define INC_IMU_H_
 
+#include "bno055.h"
+
 typedef struct {
     float roll;
     float pitch;

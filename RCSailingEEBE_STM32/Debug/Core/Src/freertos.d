@@ -44,12 +44,14 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
  ../Core/Inc/CONTROL.h ../Core/Inc/ANALOG.h ../Core/Inc/IMU.h \
+ ../Core/Inc/bno055.h \
+ ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h \
  ../Core/Inc/TELEMETRY.h ../Core/Inc/CONTROL.h ../Core/Inc/IMU.h \
  ../Core/Inc/ANALOG.h ../Core/Inc/tim.h ../Core/Inc/main.h \
  ../Core/Inc/stm32f4xx_it.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
- ../Core/Inc/adc.h
+ ../Core/Inc/adc.h ../Core/Inc/i2c.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -98,6 +100,8 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Core/Inc/CONTROL.h:
 ../Core/Inc/ANALOG.h:
 ../Core/Inc/IMU.h:
+../Core/Inc/bno055.h:
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h:
 ../Core/Inc/TELEMETRY.h:
 ../Core/Inc/CONTROL.h:
 ../Core/Inc/IMU.h:
@@ -108,3 +112,4 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h:
 ../Core/Inc/adc.h:
+../Core/Inc/i2c.h:

@@ -6,39 +6,59 @@
  */
 
 #include "IMU.h"
-#include "bno055_stm32.h"  // Library from https://github.com/ivyknob/bno055_stm32
 #include "cmsis_os.h"      // For osMessageQueuePut
+#include "i2c.h"      // For osMessageQueuePut
 extern osMessageQueueId_t imuQueueHandle;
 
-void imu_read(void){
-    ImuData_t imuData = {0};
 
-    // Get fused Euler angles from the BNO055 sensor.
-    // In the library’s example, bno055_getVectorEuler() returns a bno055_vector_t with:
-    //   x = Heading, y = Roll, and z = Pitch.
-    bno055_vector_t euler = bno055_getVectorEuler();
+static bno055_t bno = (bno055_t){
+    .i2c = &hi2c3, .addr = BNO_ADDR, .mode = BNO_MODE_NDOF,
+};
+ImuData_t imuDataSent= {0};
 
-    // Map the Euler angles to our IMU data structure:
-    imuData.yaw   = euler.x;  // Heading
-    imuData.roll  = euler.y;
-    imuData.pitch = euler.z;
 
-    bno055_vector_t accel = bno055_getVectorAccelerometer();
+void imu_read(void) {
 
-    imuData.accelX = accel.x;
-    imuData.accelY = accel.y;
-    imuData.accelZ = accel.z;
+    static int initialized = 0;
+    if (!initialized) {
+        // Initialize the sensor
+        bno055_init(&bno);
+        initialized = 1;
+    }
 
-    bno055_vector_t gyro = bno055_getVectorGyroscope();
-    imuData.gyroX = gyro.x;
-    imuData.gyroY = gyro.y;
-    imuData.gyroZ = gyro.z;
 
-    bno055_vector_t mag = bno055_getVectorMagnetometer();
-    imuData.magX = mag.x;
-    imuData.magY = mag.y;
-    imuData.magZ = mag.z;
+    // Fetch accelerometer data (X, Y, Z)
+    bno055_vec3_t accelData;
+    if (bno055_acc(&bno, &accelData) == BNO_OK) {
+    	imuDataSent.accelX = accelData.x;
+    	imuDataSent.accelY = accelData.y;
+    	imuDataSent.accelZ = accelData.z;
+    }
+
+    // Fetch gyroscope data (X, Y, Z)
+    bno055_vec3_t gyroData;
+    if (bno055_gyro(&bno, &gyroData) == BNO_OK) {
+    	imuDataSent.gyroX = gyroData.x;
+    	imuDataSent.gyroY = gyroData.y;
+    	imuDataSent.gyroZ = gyroData.z;
+    }
+
+    // Fetch magnetometer data (X, Y, Z)
+    bno055_vec3_t magData;
+    if (bno055_mag(&bno, &magData) == BNO_OK) {
+    	imuDataSent.magX = magData.x;
+    	imuDataSent.magY = magData.y;
+    	imuDataSent.magZ = magData.z;
+    }
+
+    // Fetch Euler angles (Roll, Pitch, Yaw)
+    bno055_euler_t eulerData;
+    if (bno055_euler(&bno, &eulerData) == BNO_OK) {
+    	imuDataSent.roll = eulerData.roll;
+    	imuDataSent.pitch = eulerData.pitch;
+    	imuDataSent.yaw = eulerData.yaw;
+    }
 
     // Post the sensor data to the message queue.
-    osMessageQueuePut(imuQueueHandle, &imuData, 0, 0);
+    osMessageQueuePut(imuQueueHandle, &imuDataSent, 0, 0);
 }
