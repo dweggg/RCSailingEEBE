@@ -88,7 +88,7 @@ def toggle_logging(logger_widget):
     Toggle CSV logging on/off.
     
     Uses the logger_widget (an instance of CSVLoggerWidget) to get:
-      - The log_button for updating text.
+      - The log_button for updating text and style.
       - The list of sensor names via logger_widget.get_sensors().
     """
     global logging_active, logging_start_time, logging_vars, csv_file, csv_writer
@@ -118,11 +118,13 @@ def toggle_logging(logger_widget):
         logging_start_time = time.time()
         logging_active = True
         logger_widget.log_button.setText("Stop Logging")
+        logger_widget.log_button.setStyleSheet("background-color: red; color: white;")  # Red button
     else:
         logging_active = False
         if csv_file:
             csv_file.close()
         logger_widget.log_button.setText("Start Logging")
+        logger_widget.log_button.setStyleSheet("background-color: none; QGroupBox { border: 2px solid gray; }")  # Reset button style
 
 
 def log_data(data_history):
