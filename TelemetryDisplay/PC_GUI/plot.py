@@ -5,7 +5,6 @@ from config import SENSOR_KEYS
 from focus import FocusManager
 
 class DynamicPlot(QtWidgets.QWidget):
-    # Signal to notify selection.
     selected_signal = QtCore.pyqtSignal(object)
     
     def __init__(self, parent=None, tiling_area=None):  # Pass reference to TilingArea
@@ -19,7 +18,8 @@ class DynamicPlot(QtWidgets.QWidget):
         self.init_ui()
         self.setAcceptDrops(True)
         self.setStyleSheet("border: 2px solid gray;")
-    
+        self.display_mode = False  # Track the current display mode
+
     def init_ui(self):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -36,14 +36,30 @@ class DynamicPlot(QtWidgets.QWidget):
 
         # Remove Button inside plot area (floating) to remove the entire plot.
         self.remove_button = QtWidgets.QPushButton("✖")
-        self.remove_button.setParent(self.plot)
+        self.remove_button.setParent(self)
         self.remove_button.setFixedSize(20, 20)
-        self.remove_button.move(self.plot.width() - 25, 5)  # Position top-right
+        self.remove_button.move(self.width() - 25, 5)  # Position top-right
         self.remove_button.setStyleSheet(
             "background-color: rgba(255, 0, 0, 150); color: white; border-radius: 10px; font-weight: bold;"
         )
         self.remove_button.clicked.connect(self.remove_self)
-    
+
+        # Toggle Mode Button
+        self.toggle_button = QtWidgets.QPushButton("D")
+        self.toggle_button.setFixedSize(20, 20)  # Small button size
+        self.toggle_button.setStyleSheet(
+            "background-color: rgba(0, 255, 0, 150); color: white; border-radius: 10px; font-weight: bold;"
+        )
+        self.toggle_button.clicked.connect(self.toggle_mode)
+        self.toggle_button.setParent(self)
+        self.toggle_button.move(self.width() - 50, 5)  # Position next to remove button
+
+        # Create a container for display mode widgets
+        self.display_container = QtWidgets.QWidget(self)
+        self.display_layout = QtWidgets.QVBoxLayout(self.display_container)
+        self.display_container.hide()  # Initially hidden
+        self.layout.addWidget(self.display_container)  # Add display container to the main layout
+
     def remove_self(self):
         """Safely remove itself from TilingArea."""
         if self.tiling_area:
@@ -52,7 +68,8 @@ class DynamicPlot(QtWidgets.QWidget):
     def resizeEvent(self, event):
         """Update remove button position when resizing the plot."""
         super().resizeEvent(event)
-        self.remove_button.move(self.plot.width() - 25, 5)  # Keep it in top-right corner
+        self.remove_button.move(self.width() - 25, 5)  # Keep it in top-right corner
+        self.toggle_button.move(self.width() - 50, 5)  # Keep it next to remove button
 
     def add_sensor(self, sensor):
         """Adds a new sensor stream to the plot if not already present."""
@@ -99,8 +116,55 @@ class DynamicPlot(QtWidgets.QWidget):
             if pts:
                 t = np.arange(len(pts))
                 self.curves[sensor].setData(t, np.array(pts))
+
+        if self.display_mode:
+            self.show_display_mode(data_history)
     
     def mousePressEvent(self, event):
         FocusManager.set_active(self)
         self.selected_signal.emit(self)
         super().mousePressEvent(event)
+
+    def toggle_mode(self):
+        """Switch between plot mode and display mode."""
+        self.display_mode = not self.display_mode
+        if self.display_mode:
+            self.toggle_button.setText("P")
+            self.plot.hide()  # Hide the plot area
+            self.display_container.show()  # Show the display mode container
+            
+            # Ensure the buttons remain clickable by raising them above the display_container.
+            self.remove_button.raise_()
+            self.toggle_button.raise_()
+            
+            self.show_display_mode({})  # Initialize display mode
+        else:
+            self.toggle_button.setText("D")
+            self.plot.show()  # Show the plot area
+            self.display_container.hide()  # Hide the display mode container
+
+    def show_display_mode(self, data_history):
+        """Displays the most recent values in large, bold text or a 'No data available' message."""
+        
+        # Clear the current display layout
+        self.clear_layout(self.display_layout)
+
+        for sensor in self.sensor_keys_assigned:
+            if sensor in data_history and data_history[sensor]:  # Check if there's data for the sensor
+                value = data_history[sensor][-1]  # Get most recent value
+                label = QtWidgets.QLabel(f"{sensor}: {value:.2f}")
+                label.setStyleSheet("font-size: 24px; font-weight: bold;")
+            else:
+                # If no data exists, show a 'No data available' message
+                label = QtWidgets.QLabel(f"{sensor}: No data available")
+                label.setStyleSheet("font-size: 24px; font-weight: bold; color: red;")
+            
+            self.display_layout.addWidget(label)
+
+    def clear_layout(self, layout):
+        """Clear all items from the layout."""
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()

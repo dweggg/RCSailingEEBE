@@ -57,12 +57,10 @@ class TilingArea(QtWidgets.QWidget):
         self.rows_splitter.addWidget(row_splitter)
         self.add_plot_to_row(row_splitter)
 
+
     def add_plot_to_row(self, row_splitter, position=None):
-        """Adds a new DynamicPlot to a given row splitter.
-           If 'position' is provided, the new plot is inserted at that index.
-           Otherwise it is added at the end.
-        """
-        plot = DynamicPlot()
+        """Adds a new DynamicPlot to a given row splitter."""
+        plot = DynamicPlot(tiling_area=self)  # Pass the tiling area to the plot
         plot.selected_signal.connect(self.set_selected_plot)
         plot.remove_button.clicked.connect(lambda: self.remove_plot(plot))
         if position is None:
