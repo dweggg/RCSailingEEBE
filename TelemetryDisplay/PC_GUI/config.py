@@ -12,7 +12,7 @@ if sys.platform.startswith('linux'):
 BAUD_RATE = 115200
 UPDATE_INTERVAL_MS = 25      # Update interval in milliseconds
 MAX_POINTS = 500             # Maximum data points to store per channel
-
+MODEL_PATH = 'boat_model.stl'
 # Available sensor keys
 SENSOR_KEYS = [
     'ACX', 'ACY', 'ACZ',

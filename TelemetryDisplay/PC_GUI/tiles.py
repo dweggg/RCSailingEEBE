@@ -4,6 +4,7 @@ from plot import DynamicPlot
 class TilingArea(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
         # Outer splitter to hold rows (each row is a horizontal splitter).
         self.rows_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
         self.rows_splitter.setChildrenCollapsible(False)
