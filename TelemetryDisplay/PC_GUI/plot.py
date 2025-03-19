@@ -58,11 +58,13 @@ class DynamicPlot(QtWidgets.QWidget):
         """Adds a new sensor stream to the plot if not already present."""
         if sensor in self.sensor_keys_assigned:
             return  # Sensor already added.
+        
         self.sensor_keys_assigned.append(sensor)
         color = self.get_color(len(self.sensor_keys_assigned) - 1)
         curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
         self.curves[sensor] = curve
-    
+        self.update_legend()
+
     def remove_sensor(self, sensor):
         """Removes an existing sensor stream from the plot."""
         if sensor in self.sensor_keys_assigned:
@@ -70,15 +72,11 @@ class DynamicPlot(QtWidgets.QWidget):
             if sensor in self.curves:
                 curve = self.curves.pop(sensor)
                 self.plot.removeItem(curve)
-            # Rebuild legend to reflect removal.
-            self.rebuild_legend()
+            self.update_legend()
 
-    def rebuild_legend(self):
-        """Rebuilds the legend based on the current sensor streams."""
-        # Remove the current legend.
-        self.plot.removeItem(self.legend)
-        # Create a new legend.
-        self.legend = self.plot.addLegend(offset=(10, 10))
+    def update_legend(self):
+        """Updates the legend based on the current sensor streams."""
+        self.legend.clear()
         for sensor in self.sensor_keys_assigned:
             if sensor in self.curves:
                 self.legend.addItem(self.curves[sensor], sensor)

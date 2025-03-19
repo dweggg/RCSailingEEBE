@@ -168,6 +168,8 @@ def add_variable_to_selected(item):
         # Assume it's a DynamicPlot; add sensor if not already present.
         if sensor not in active_widget.sensor_keys_assigned:
             active_widget.add_sensor(sensor)
+        else:
+            active_widget.remove_sensor(sensor)
 
 variables_list.itemDoubleClicked.connect(add_variable_to_selected)
 
