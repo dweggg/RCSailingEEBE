@@ -1,0 +1,8 @@
+{
+    "sensor_keys": [
+        "ACX", "ACY", "ACZ",
+        "GYX", "GYY", "GYZ",
+        "MGX", "MGY", "MGZ",
+        "ROL", "PIT", "YAW"
+    ]
+}

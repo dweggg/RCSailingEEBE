@@ -168,3 +168,13 @@ class DynamicPlot(QtWidgets.QWidget):
                 child = layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
+    
+    def get_state(self):
+        """Return the current state of the plot as a dictionary."""
+        # Get geometry relative to its parent (x, y, width, height)
+        geom = self.geometry().getRect()  # (x, y, width, height)
+        return {
+            "geometry": {"x": geom[0], "y": geom[1], "width": geom[2], "height": geom[3]},
+            "sensor_keys": self.sensor_keys_assigned,
+            "display_mode": "display" if self.display_mode else "plot"
+        }

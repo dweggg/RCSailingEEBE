@@ -20,6 +20,9 @@ from focus import FocusManager
 from stl import mesh as stlMesh
 import trimesh
 
+# Import our menu and config functions
+from menu import setup_menu_bar
+
 # --- Global Logging Variables ---
 logging_active = False
 logging_start_time = None
@@ -30,18 +33,19 @@ csv_writer = None
 # --- Application Setup ---
 app = QtWidgets.QApplication([])
 
+# Use QMainWindow to enable a top menu bar.
+main_window = QtWidgets.QMainWindow()
+main_window.setWindowTitle("e-Tech Sailing Telemetry Logger")
+main_window.resize(1400, 800)
+
+# Create a central widget with a horizontal layout.
+central_widget = QtWidgets.QWidget()
+main_window.setCentralWidget(central_widget)
+main_layout = QtWidgets.QHBoxLayout(central_widget)
+
 # --- Serial Port Setup ---
 port = select_serial_port()
 ser = open_serial_port(port)
-
-main_widget = QtWidgets.QWidget()
-main_layout = QtWidgets.QHBoxLayout(main_widget)  # We'll use a horizontal layout for the three columns.
-main_widget.setWindowTitle("e-Tech Sailing Telemetry Logger")
-main_widget.resize(1400, 800)
-
-# Create a horizontal splitter to hold three columns.
-main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
-main_layout.addWidget(main_splitter)
 
 # --- Left Column: Variables List and CSV Logger ---
 left_widget = QtWidgets.QWidget()
@@ -50,7 +54,6 @@ left_layout.setContentsMargins(5, 5, 5, 5)
 left_layout.setSpacing(5)
 
 variables_list = VariablesList()
-# Optionally, you can set a fixed height for the variables list.
 variables_list.setFixedHeight(500)
 left_layout.addWidget(variables_list)
 
@@ -60,20 +63,26 @@ left_layout.addWidget(csv_logger_widget)
 # --- Middle Column: Plot Area (Tiling Area) ---
 tiling_area = TilingArea()
 
+
+setup_menu_bar(main_window, tiling_area)
+
 # --- Right Column: 3D Model View ---
 model_view = gl.GLViewWidget()
 model_view.opts['distance'] = 2  # Set viewing distance.
 model_view.setBackgroundColor('w')  # White background.
 
-
-# After creating model_view and tiling_area:
+# Set focus policies for proper interaction.
 model_view.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 tiling_area.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 
-# Add the three columns to the splitter.
+# --- Create a horizontal splitter to hold three columns ---
+main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+main_layout.addWidget(main_splitter)
+
 main_splitter.addWidget(left_widget)
 main_splitter.addWidget(tiling_area)
 main_splitter.addWidget(model_view)
+
 # Optionally, set stretch factors.
 main_splitter.setStretchFactor(0, 1)
 main_splitter.setStretchFactor(1, 3)
@@ -106,13 +115,11 @@ def load_model(file_path):
     model_item.translate(0, 0, 0)
     return model_item
 
-model_item = load_model(MODEL_PATH)  # Update MODEL_PATH accordingly.
+model_item = load_model(MODEL_PATH)
 model_view.addItem(model_item)
 
 # --- Connect CSV Logger Button ---
-csv_logger_widget.log_button.clicked.connect(
-    lambda: toggle_logging(csv_logger_widget)
-)
+csv_logger_widget.log_button.clicked.connect(lambda: toggle_logging(csv_logger_widget))
 
 # --- Update Function ---
 def update():
@@ -156,7 +163,6 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(UPDATE_INTERVAL_MS)
 
-
 def add_variable_to_selected(item):
     sensor = item.text()
     active_widget = FocusManager.get_active()
@@ -165,7 +171,6 @@ def add_variable_to_selected(item):
     if isinstance(active_widget, CSVLoggerWidget):
         active_widget.toggle_sensor(sensor)
     else:
-        # Assume it's a DynamicPlot; add sensor if not already present.
         if sensor not in active_widget.sensor_keys_assigned:
             active_widget.add_sensor(sensor)
         else:
@@ -176,5 +181,5 @@ variables_list.itemDoubleClicked.connect(add_variable_to_selected)
 # Ensure at least one plot exists.
 tiling_area.add_initial_row()
 
-main_widget.show()
+main_window.show()
 sys.exit(app.exec())
