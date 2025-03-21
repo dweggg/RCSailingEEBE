@@ -1,8 +1,17 @@
 {
     "sensor_keys": [
-        "ACX", "ACY", "ACZ",
-        "GYX", "GYY", "GYZ",
-        "MGX", "MGY", "MGZ",
-        "ROL", "PIT", "YAW"
+        {"key": "ACX", "dir": "RX", "name": "Accelerometer X"},
+        {"key": "ACY", "dir": "RX", "name": "Accelerometer Y"},
+        {"key": "ACZ", "dir": "RX", "name": "Accelerometer Z"},
+        {"key": "GYX", "dir": "RX", "name": "Gyroscope X"},
+        {"key": "GYY", "dir": "RX", "name": "Gyroscope Y"},
+        {"key": "GYZ", "dir": "RX", "name": "Gyroscope Z"},
+        {"key": "MGX", "dir": "RX", "name": "Magnetometer X"},
+        {"key": "MGY", "dir": "RX", "name": "Magnetometer Y"},
+        {"key": "MGZ", "dir": "RX", "name": "Magnetometer Z"},
+        {"key": "ROL", "dir": "RX", "name": "Roll"},
+        {"key": "PIT", "dir": "RX", "name": "Pitch"},
+        {"key": "YAW", "dir": "RX", "name": "Yaw"},
+        {"key": "MOD", "dir": "TX", "name": "Mode"}
     ]
 }

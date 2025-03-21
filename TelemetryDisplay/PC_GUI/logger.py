@@ -3,13 +3,7 @@ import time
 from PyQt6 import QtWidgets, QtCore
 from variables import VariablesList
 from focus import FocusManager
-
-# Global logging variables (shared with data.py if needed)
-logging_active = False
-logging_start_time = None
-logging_vars = []  # List of sensor keys to log
-csv_file = None
-csv_writer = None
+from data import *
 
 # --- CSV Logger Widget ---
 class CSVLoggerWidget(QtWidgets.QGroupBox):

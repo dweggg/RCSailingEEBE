@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 import sys
-import csv
 import time
 import numpy as np
 import pyqtgraph as pg
-import pyqtgraph.opengl as gl
 from PyQt6 import QtWidgets, QtCore
 import serial
 
-from config import SENSOR_KEYS, BAUD_RATE, UPDATE_INTERVAL_MS, MAX_POINTS, MODEL_PATH
-from data import data_history
+from config import BAUD_RATE, UPDATE_INTERVAL_MS, MAX_POINTS, MODEL_PATH
+from variables import SENSOR_KEYS
+from data import data_history, start_time
 from plot import DynamicPlot
 from tiles import TilingArea
 from uart import select_serial_port, open_serial_port
 from logger import *
 from focus import FocusManager
 
-# Import the necessary libraries for loading STL and OBJ files
-from stl import mesh as stlMesh
-import trimesh
+# Import 3D Model View functionality
+from model import create_3d_model_view, load_model
 
-# Import our menu and config functions
+# Import menu setup
 from menu import setup_menu_bar
 
 # --- Global Logging Variables ---
@@ -33,12 +31,12 @@ csv_writer = None
 # --- Application Setup ---
 app = QtWidgets.QApplication([])
 
-# Use QMainWindow to enable a top menu bar.
+# Main window setup
 main_window = QtWidgets.QMainWindow()
 main_window.setWindowTitle("e-Tech Sailing Telemetry Logger")
 main_window.resize(1400, 800)
 
-# Create a central widget with a horizontal layout.
+# Create a central widget with a horizontal layout
 central_widget = QtWidgets.QWidget()
 main_window.setCentralWidget(central_widget)
 main_layout = QtWidgets.QHBoxLayout(central_widget)
@@ -62,68 +60,46 @@ left_layout.addWidget(csv_logger_widget)
 
 # --- Middle Column: Plot Area (Tiling Area) ---
 tiling_area = TilingArea()
-
-
 setup_menu_bar(main_window, tiling_area)
 
-# --- Right Column: 3D Model View ---
-model_view = gl.GLViewWidget()
-model_view.opts['distance'] = 2  # Set viewing distance.
-model_view.setBackgroundColor('w')  # White background.
+# --- Right Column: 3D Model View (Initially Hidden) ---
+model_view = create_3d_model_view()
+model_item = load_model(MODEL_PATH)
+model_view.addItem(model_item)
+model_view.setFixedWidth(400)
 
-# Set focus policies for proper interaction.
-model_view.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
-tiling_area.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+model_view.setVisible(False)  # Initially hidden
 
-# --- Create a horizontal splitter to hold three columns ---
+# --- Create Horizontal Splitter ---
 main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
 main_layout.addWidget(main_splitter)
 
+# Add widgets to the splitter
 main_splitter.addWidget(left_widget)
 main_splitter.addWidget(tiling_area)
 main_splitter.addWidget(model_view)
 
-# Optionally, set stretch factors.
+# Set stretch factors for better layout distribution
 main_splitter.setStretchFactor(0, 1)
 main_splitter.setStretchFactor(1, 3)
 main_splitter.setStretchFactor(2, 1)
 
-# --- Load Model (STL or OBJ) ---
-def load_model(file_path):
-    if file_path.lower().endswith('.stl'):
-        stl_model = stlMesh.Mesh.from_file(file_path)
-        verts = stl_model.vectors.reshape(-1, 3)
-        num_triangles = stl_model.vectors.shape[0]
-        faces = np.arange(num_triangles * 3).reshape(-1, 3)
-        model_meshdata = gl.MeshData(vertexes=verts, faces=faces)
-    elif file_path.lower().endswith('.obj'):
-        obj_model = trimesh.load_mesh(file_path)
-        verts = obj_model.vertices
-        faces = obj_model.faces
-        model_meshdata = gl.MeshData(vertexes=verts, faces=faces)
-    else:
-        raise ValueError("Unsupported file format. Please use STL or OBJ.")
-    
-    model_item = gl.GLMeshItem(
-        meshdata=model_meshdata,
-        smooth=True,
-        color=(1, 1, 0, 1),
-        shader='shaded',
-        glOptions='opaque',
-        drawEdges=False
-    )
-    model_item.translate(0, 0, 0)
-    return model_item
+# --- Toggle Button for 3D Model Visibility ---
+def toggle_model_view():
+    """Toggle the visibility of the 3D model section."""
+    model_view.setVisible(not model_view.isVisible())
+    toggle_button.setText("Hide 3D Model" if model_view.isVisible() else "Show 3D Model")
 
-model_item = load_model(MODEL_PATH)
-model_view.addItem(model_item)
+toggle_button = QtWidgets.QPushButton("Show 3D Model")
+toggle_button.clicked.connect(toggle_model_view)
+left_layout.addWidget(toggle_button)
 
 # --- Connect CSV Logger Button ---
 csv_logger_widget.log_button.clicked.connect(lambda: toggle_logging(csv_logger_widget))
 
 # --- Update Function ---
 def update():
-    # Read serial data.
+    """Fetch serial data, update plots, and rotate the 3D model if visible."""
     while ser.in_waiting:
         try:
             line = ser.readline().decode('utf-8').strip()
@@ -137,34 +113,35 @@ def update():
         except ValueError:
             continue
         if key in data_history:
-            data_history[key].append(value)
+            data_history[key].append((value, time.time() - start_time))
             if len(data_history[key]) > MAX_POINTS:
                 data_history[key] = data_history[key][-MAX_POINTS:]
-    
-    # Update plots.
+
+    # Update plots
     for plot in tiling_area.plots.keys():
         plot.update_plot(data_history)
-    
-    # Update model rotation using latest ROL, PIT, YAW values.
-    if data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
-        roll  = data_history['ROL'][-1]
-        pitch = data_history['PIT'][-1]
-        yaw   = data_history['YAW'][-1]
+
+    # Update 3D model rotation only if visible
+    if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
+        roll = data_history['ROL'][-1][0]
+        pitch = data_history['PIT'][-1][0]
+        yaw = data_history['YAW'][-1][0]
         model_item.resetTransform()
         model_item.translate(0, 0, 0)
-        model_item.rotate(yaw,   0, 0, 1)
+        model_item.rotate(yaw, 0, 0, 1)
         model_item.rotate(pitch, 0, 1, 0)
-        model_item.rotate(roll,  1, 0, 0)
-    
-    # CSV Logging.
+        model_item.rotate(roll, 1, 0, 0)
+
+    # CSV Logging
     log_data(data_history)
 
+# --- Timer for Updates ---
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(UPDATE_INTERVAL_MS)
 
 def add_variable_to_selected(item):
-    sensor = item.text()
+    sensor = item.data(QtCore.Qt.ItemDataRole.UserRole)
     active_widget = FocusManager.get_active()
     if active_widget is None:
         return
@@ -178,7 +155,7 @@ def add_variable_to_selected(item):
 
 variables_list.itemDoubleClicked.connect(add_variable_to_selected)
 
-# Ensure at least one plot exists.
+# Ensure at least one plot exists
 tiling_area.add_initial_row()
 
 main_window.show()
