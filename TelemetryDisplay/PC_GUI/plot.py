@@ -31,6 +31,8 @@ class DynamicPlot(QtWidgets.QWidget):
         # To store the last sent value for TX sensors.
         self.last_tx_values = {}
 
+        self.sensor_colors = {}  # New dictionary to map sensor to color.
+
     def init_ui(self):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -44,6 +46,18 @@ class DynamicPlot(QtWidgets.QWidget):
         self.legend = self.plot.addLegend(offset=(10, 10))
         self.legend.anchor = (0, 0)
         self.layout.addWidget(self.plot)
+
+        # Create a QLineEdit to input time window (in seconds) inside the plot.
+        self.time_window_edit = QtWidgets.QLineEdit(self.plot)
+        self.time_window_edit.setPlaceholderText("Time Window (s)")
+        self.time_window_edit.setFixedWidth(100)
+        self.time_window_edit.setStyleSheet(
+            "background-color: rgba(200, 200, 200, 150); border: 1px solid gray; border-radius: 5px;"
+        )
+        # Position it at the top left (you can adjust this as needed)
+        self.time_window_edit.move(10, 5)
+        # Optional: update the range when the user finishes editing.
+        self.time_window_edit.editingFinished.connect(self.update_plot)
 
         # Remove button.
         self.remove_button = QtWidgets.QPushButton("✖")
@@ -88,7 +102,7 @@ class DynamicPlot(QtWidgets.QWidget):
             return  
         
         self.sensor_keys_assigned.append(sensor)
-        color = self.get_color(len(self.sensor_keys_assigned) - 1)
+        color = self.get_color(sensor)
         curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
         self.curves[sensor] = curve
         self.update_legend()
@@ -161,8 +175,14 @@ class DynamicPlot(QtWidgets.QWidget):
             if sensor in self.curves:
                 self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
     
-    def get_color(self, index):
-        colors = [
+
+    def get_color(self, sensor):
+        """Return a color for the sensor. If not assigned, generate and store a new color."""
+        if sensor in self.sensor_colors:
+            return self.sensor_colors[sensor]
+
+        # Predefined base colors for initial sensors
+        base_colors = [
             (255, 0, 0),
             (0, 255, 0),
             (0, 0, 255),
@@ -171,22 +191,30 @@ class DynamicPlot(QtWidgets.QWidget):
             (0, 255, 255),
             (255, 192, 203)
         ]
-        return colors[index % len(colors)]
+
+        if len(self.sensor_colors) < len(base_colors):
+            new_color = base_colors[len(self.sensor_colors)]
+        else:
+            # Generate a new color dynamically using HSV
+            hue = (len(self.sensor_colors) * 37) % 360  # Spread colors around the hue wheel
+            hsv_color = pg.hsvColor(hue / 360.0, 1.0, 1.0)  # Normalize hue to [0,1]
+            new_color = hsv_color.getRgb()[:3]  # Extract RGB tuple
+
+        self.sensor_colors[sensor] = new_color
+        return new_color
+
         
-    def update_plot(self, data_history):
+    def update_plot(self, data_history=data_history):
         # Update plot curves.
+        current_time = time.time() - start_time
         for sensor in self.sensor_keys_assigned:
             if sensor in data_history and len(data_history[sensor]) > 0:
                 # Extract the last timestamp and value from the history
                 last_value = data_history[sensor][-1][0]
                 last_timestamp = data_history[sensor][-1][1]
 
-                # Get the current timestamp
-                current_time = time.time() - start_time
-
-                # Check if it's time to append the last value again
+                # Get the current timestamp and append value if needed
                 if current_time - last_timestamp >= 0.1:  # 100ms
-                    # Append the last value with the current timestamp
                     data_history[sensor].append((last_value, current_time))
 
                 # Extract time and data for plotting
@@ -195,6 +223,19 @@ class DynamicPlot(QtWidgets.QWidget):
 
                 # Update the plot data for this sensor
                 self.curves[sensor].setData(times, values)
+
+        # Apply time window if specified.
+        try:
+            time_window = float(self.time_window_edit.text())
+        except ValueError:
+            time_window = 0
+
+        if time_window > 0:
+            # Force the x-axis to show only the last 'time_window' seconds.
+            self.plot.setXRange(max(0, current_time - time_window), current_time)
+        else:
+            # If time window is 0 (or invalid), auto-range to show all data.
+            self.plot.enableAutoRange(axis='x')
 
         # In display mode, update the display widgets.
         if self.display_mode:
