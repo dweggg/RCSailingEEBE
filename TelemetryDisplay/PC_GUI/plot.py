@@ -116,6 +116,7 @@ class DynamicPlot(QtWidgets.QWidget):
         if get_sensor_direction(sensor) == 'TX':
             if sensor not in self.tx_widgets:
                 container = QtWidgets.QWidget()
+                container.setStyleSheet("border: none;")  # Remove borders for clean UI
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
@@ -133,9 +134,9 @@ class DynamicPlot(QtWidgets.QWidget):
                 self.tx_widgets[sensor] = (container, name_label, editable_input)
                 self.display_layout.addWidget(container)
         else:
-            # For RX sensors, create a similar widget but with a read-only field.
             if sensor not in self.rx_widgets:
                 container = QtWidgets.QWidget()
+                container.setStyleSheet("border: none;")  # Remove borders for clean UI
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
@@ -143,13 +144,13 @@ class DynamicPlot(QtWidgets.QWidget):
                 name_label.setStyleSheet("font-size: 24px; font-weight: bold;")
                 h_layout.addWidget(name_label)
                 
-                # Create a QLineEdit that is read-only.
                 output_field = QtWidgets.QLineEdit()
                 output_field.setReadOnly(True)
                 output_field.setStyleSheet("font-size: 24px; font-weight: bold;")
                 h_layout.addWidget(output_field)
                 self.rx_widgets[sensor] = (container, name_label, output_field)
                 self.display_layout.addWidget(container)
+
 
     def remove_sensor(self, sensor):
         """Removes an existing sensor stream from the plot."""
