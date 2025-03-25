@@ -46,7 +46,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define CONTROL_DELAY 10
-#define TELEMETRY_DELAY 500
+#define TELEMETRY_DELAY 50
 #define IMU_DELAY 10
 #define ADC_DELAY 10
 

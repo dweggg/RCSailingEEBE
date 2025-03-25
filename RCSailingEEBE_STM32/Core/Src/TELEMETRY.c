@@ -10,6 +10,7 @@
 
 #include "cmsis_os.h"
 #include "ANALOG.h"
+#include "IMU.h"
 #include <stdio.h>
 #include <string.h>
 #include "usart.h"
@@ -27,8 +28,11 @@ ControlData_t controlDataReceived;
 void telemetry(void) {
     char uartBuffer[128];  // Increased buffer size
 
-
     for (;;) {
+
+    	snprintf(uartBuffer, sizeof(uartBuffer), "OK\r\n");
+        HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
+
         if (osMessageQueueGetCount(imuQueueHandle) > 0) {
 			// Get ADC Data
         	osMessageQueueGet(adcQueueHandle, (void*)&adcDataReceived, NULL, osWaitForever);
@@ -43,7 +47,7 @@ void telemetry(void) {
             HAL_UART_Transmit(&huart1, (uint8_t*)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
         }
 
-        if (osMessageQueueGetCount(imuQueueHandle) > 0) {
+        if (osMessageQueueGetCount(imuQueueHandle) > 0 && is_imu_initialized()) {
 			// Get IMU Data
 			osMessageQueueGet(imuQueueHandle, (void*)&imuDataReceived, NULL, osWaitForever);
 			// Send IMU Data

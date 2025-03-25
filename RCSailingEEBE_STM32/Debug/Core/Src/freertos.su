@@ -3,8 +3,8 @@
 ../Core/Src/freertos.c:163:13:PreSleepProcessing	16	static
 ../Core/Src/freertos.c:168:13:PostSleepProcessing	16	static
 ../Core/Src/freertos.c:179:6:MX_FREERTOS_Init	8	static
-../Core/Src/freertos.c:262:6:StartDefaultTask	16	static
-../Core/Src/freertos.c:281:6:_control_task	16	static
-../Core/Src/freertos.c:300:6:_imu_read_task	16	static
-../Core/Src/freertos.c:319:6:_adc_read_task	16	static
-../Core/Src/freertos.c:338:6:_telemetry_task	16	static
+../Core/Src/freertos.c:265:6:StartDefaultTask	16	static
+../Core/Src/freertos.c:284:6:_control_task	16	static
+../Core/Src/freertos.c:303:6:_imu_read_task	16	static
+../Core/Src/freertos.c:322:6:_adc_read_task	16	static
+../Core/Src/freertos.c:341:6:_telemetry_task	16	static

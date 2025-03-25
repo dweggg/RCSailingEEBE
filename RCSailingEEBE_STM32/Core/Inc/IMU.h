@@ -30,4 +30,6 @@ typedef struct {
 
 void imu_read(void);
 
+int is_imu_initialized(void);
+
 #endif /* INC_IMU_H_ */

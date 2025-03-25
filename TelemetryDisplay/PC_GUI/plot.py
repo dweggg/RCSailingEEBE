@@ -215,7 +215,7 @@ class DynamicPlot(QtWidgets.QWidget):
                 last_timestamp = data_history[sensor][-1][1]
 
                 # Get the current timestamp and append value if needed
-                if current_time - last_timestamp >= 0.1:  # 100ms
+                if current_time - last_timestamp >= 0.5:  # 500ms
                     data_history[sensor].append((last_value, current_time))
 
                 # Extract time and data for plotting

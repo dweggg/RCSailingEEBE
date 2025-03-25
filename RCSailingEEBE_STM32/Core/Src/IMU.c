@@ -16,14 +16,16 @@ static bno055_t bno = (bno055_t){
 };
 ImuData_t imuDataSent= {0};
 
+int initialized = 0;
+enum _error_bno imu_error;
 
 void imu_read(void) {
 
-    static int initialized = 0;
     if (!initialized) {
+    	osDelay(10);
         // Initialize the sensor
-        bno055_init(&bno);
-        initialized = 1;
+        imu_error = bno055_init(&bno);
+        if (imu_error == BNO_OK) { initialized = 1;}
     }
 
 
@@ -61,4 +63,8 @@ void imu_read(void) {
 
     // Post the sensor data to the message queue.
     osMessageQueuePut(imuQueueHandle, &imuDataSent, 0, 0);
+}
+
+int is_imu_initialized(void){
+    return initialized;
 }

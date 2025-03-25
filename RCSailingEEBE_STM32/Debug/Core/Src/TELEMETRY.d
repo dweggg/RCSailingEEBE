@@ -46,7 +46,8 @@ Core/Src/TELEMETRY.o: ../Core/Src/TELEMETRY.c ../Core/Inc/TELEMETRY.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
- ../Core/Inc/ANALOG.h ../Core/Inc/usart.h ../Core/Inc/main.h
+ ../Core/Inc/ANALOG.h ../Core/Inc/IMU.h ../Core/Inc/usart.h \
+ ../Core/Inc/main.h
 ../Core/Inc/TELEMETRY.h:
 ../Core/Inc/CONTROL.h:
 ../Core/Inc/IMU.h:
@@ -98,5 +99,6 @@ Core/Src/TELEMETRY.o: ../Core/Src/TELEMETRY.c ../Core/Inc/TELEMETRY.h \
 ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h:
 ../Core/Inc/ANALOG.h:
+../Core/Inc/IMU.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/main.h:

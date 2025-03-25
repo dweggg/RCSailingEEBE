@@ -12,6 +12,12 @@
         {"key": "ROL", "dir": "RX", "name": "Roll"},
         {"key": "PIT", "dir": "RX", "name": "Pitch"},
         {"key": "YAW", "dir": "RX", "name": "Yaw"},
+
+        {"key": "DIR", "dir": "RX", "name": "Wind direction"},
+        {"key": "BAT", "dir": "RX", "name": "Battery voltage"},
+        {"key": "EX1", "dir": "RX", "name": "Extra 1"},
+        {"key": "EX2", "dir": "RX", "name": "Extra 2"},
+        
         {"key": "MOD", "dir": "TX", "name": "Mode"}
     ]
 }
