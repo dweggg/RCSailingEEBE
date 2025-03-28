@@ -1,0 +1,10 @@
+../Core/Src/freertos.c:150:13:configureTimerForRunTimeStats	8	static
+../Core/Src/freertos.c:156:22:getRunTimeCounterValue	4	static
+../Core/Src/freertos.c:163:13:PreSleepProcessing	16	static
+../Core/Src/freertos.c:168:13:PostSleepProcessing	16	static
+../Core/Src/freertos.c:179:6:MX_FREERTOS_Init	8	static
+../Core/Src/freertos.c:263:6:StartDefaultTask	16	static
+../Core/Src/freertos.c:282:6:_control_task	16	static
+../Core/Src/freertos.c:301:6:_imu_read_task	16	static
+../Core/Src/freertos.c:320:6:_adc_read_task	16	static
+../Core/Src/freertos.c:339:6:_telemetry_task	16	static
