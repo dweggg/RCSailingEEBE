@@ -64,8 +64,8 @@ all: main-build
 main-build: RCSailingEEBE_STM32.elf secondary-outputs
 
 # Tool invocations
-RCSailingEEBE_STM32.elf RCSailingEEBE_STM32.map: $(OBJS) $(USER_OBJS) C:\Users\dwegg\Desktop\Repos\ CITCEA\RCSailingEEBE\STM32\STM32F401CBUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "RCSailingEEBE_STM32.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\dwegg\Desktop\Repos CITCEA\RCSailingEEBE\STM32\STM32F401CBUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="RCSailingEEBE_STM32.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+RCSailingEEBE_STM32.elf RCSailingEEBE_STM32.map: $(OBJS) $(USER_OBJS) C:\Users\DavidRedondo\Desktop\Repos_CITCEA\RCSailingEEBE\STM32\STM32F401CBUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "RCSailingEEBE_STM32.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\DavidRedondo\Desktop\Repos_CITCEA\RCSailingEEBE\STM32\STM32F401CBUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="RCSailingEEBE_STM32.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

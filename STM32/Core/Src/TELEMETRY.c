@@ -29,15 +29,18 @@ ControlData_t controlDataReceived;
 static char uartRxBuffer[RX_BUFFER_SIZE] = {0};
 float modValue = 0.0f;
 
+
+#define TX_BUFFER_SIZE 16
+static char uartTxBuffer[TX_BUFFER_SIZE];  // TX buffer (larger size for safety)
+
 /**
  * @brief Transmits a telemetry value with a given key.
  *
  * The message is formatted as "KEY:VALUE\r\n".
  */
 static void telemetry_transmit(const char *key, float value) {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%s:%.2f\r\n", key, value);
-    HAL_UART_Transmit(&huart1, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+    snprintf(uartTxBuffer, sizeof(uartTxBuffer), "%s:%.2f\r\n", key, value);
+    HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), 1);
 }
 
 /**
@@ -50,111 +53,126 @@ static void telemetry_start_rx_dma(void) {
     HAL_UART_Receive_DMA(&huart1, (uint8_t *)uartRxBuffer, RX_BUFFER_SIZE);
 }
 
-#define TEMP_BUFFER_SIZE RX_BUFFER_SIZE
+// Define a sufficiently large temporary buffer for complete messages.
+#define TEMP_BUFFER_SIZE 64
 
-static void copy_circular_buffer(char *dest, const char *src, int start, int count) {
-    // Copy from start index to the end of the buffer
-    int firstPart = (start + count > RX_BUFFER_SIZE) ? RX_BUFFER_SIZE - start : count;
-    memcpy(dest, &src[start], firstPart);
+bool telemetry_receive(const char *key, float *value) {
+    // Static variables to keep state across function calls
+    static uint16_t last_read_index = 0;
+    static char tempBuffer[TEMP_BUFFER_SIZE];
+    static uint16_t tempIndex = 0;
 
-    // If the data wraps around, copy the rest from the beginning
-    if (count > firstPart) {
-        memcpy(dest + firstPart, src, count - firstPart);
-    }
-    dest[count] = '\0'; // Ensure null termination
-}
+    // Determine the current index in the DMA circular buffer.
+    // RX_BUFFER_SIZE is defined in the file as 16.
+    // __HAL_DMA_GET_COUNTER returns the number of bytes remaining.
+    uint16_t dma_remaining = __HAL_DMA_GET_COUNTER(huart1.hdmarx);
+    uint16_t current_index = RX_BUFFER_SIZE - dma_remaining;
 
-static bool telemetry_receive(const char *key, float *value, int dmaHead, int dmaTail) {
-    // Calculate the length of the data currently in the buffer.
-    int dataLength;
-    if (dmaHead >= dmaTail) {
-        dataLength = dmaHead - dmaTail;
-    } else {
-        dataLength = RX_BUFFER_SIZE - dmaTail + dmaHead;
-    }
+    // Process all new characters in the circular buffer
+    while (last_read_index != current_index) {
+        char ch = uartRxBuffer[last_read_index];
+        // Update the read pointer, wrapping around if necessary.
+        last_read_index = (last_read_index + 1) % RX_BUFFER_SIZE;
 
-    char tempBuffer[TEMP_BUFFER_SIZE + 1];
-    copy_circular_buffer(tempBuffer, uartRxBuffer, dmaTail, dataLength);
+        // Append the character to the temporary buffer if space is available.
+        if (tempIndex < TEMP_BUFFER_SIZE - 1) {
+            tempBuffer[tempIndex++] = ch;
+        } else {
+            // Overflow protection: reset temp buffer if it gets too full.
+            tempIndex = 0;
+        }
 
-    char *start = strstr(tempBuffer, key);
-    if (start) {
-        char *colon = strchr(start, ':');
-        if (colon) {
-            char *end = strstr(colon, "\r\n");
-            if (end) {
-                *end = '\0';
-                *value = (float)atof(colon + 1);
-                // Optionally adjust dmaTail based on how many bytes were processed
+        // Check if the last two characters form the "\r\n" delimiter.
+        if (tempIndex >= 2 &&
+            tempBuffer[tempIndex - 2] == '\r' &&
+            tempBuffer[tempIndex - 1] == '\n') {
+
+            // Null-terminate the message (overwrite '\r' with '\0').
+            tempBuffer[tempIndex - 2] = '\0';
+
+            // Check if the message starts with the given key followed by a colon.
+            size_t keyLen = strlen(key);
+            if (strncmp(tempBuffer, key, keyLen) == 0 && tempBuffer[keyLen] == ':') {
+                // Convert the string after the colon to a float.
+                *value = (float)atof(&tempBuffer[keyLen + 1]);
+                // Reset the temporary buffer for the next message.
+                tempIndex = 0;
                 return true;
             }
+            // Message was complete but did not match the key.
+            // Clear the temp buffer and continue processing.
+            tempIndex = 0;
         }
     }
+
+    // No complete message with the requested key was received.
     return false;
 }
 
+int telemetry_initialized = 0;
 
 void telemetry(void) {
-    char uartBuffer[16];  // TX buffer (larger size for safety)
+    if (!telemetry_initialized) {
 
-    // Start RX DMA (assumes this only needs to be done once)
-    telemetry_start_rx_dma();
-
-    for (;;) {
-        // Send a simple "OK" heartbeat
-        snprintf(uartBuffer, sizeof(uartBuffer), "OK\r\n");
-        HAL_UART_Transmit(&huart1, (uint8_t *)uartBuffer, strlen(uartBuffer), HAL_MAX_DELAY);
-
-        // Transmit ADC data if available.
-        if (osMessageQueueGetCount(adcQueueHandle) > 0) {
-            osMessageQueueGet(adcQueueHandle, (void *)&adcDataReceived, NULL, osWaitForever);
-            telemetry_transmit("DIR", adcDataReceived.windDirection);
-            telemetry_transmit("BAT", adcDataReceived.batteryVoltage);
-            telemetry_transmit("EX1", adcDataReceived.extra1);
-            telemetry_transmit("EX2", adcDataReceived.extra2);
-        }
-
-        // Transmit IMU data if available and initialized.
-        if (osMessageQueueGetCount(imuQueueHandle) > 0 && is_imu_initialized()) {
-            osMessageQueueGet(imuQueueHandle, (void *)&imuDataReceived, NULL, osWaitForever);
-            telemetry_transmit("ROL", imuDataReceived.roll);
-            telemetry_transmit("PIT", imuDataReceived.pitch);
-            telemetry_transmit("YAW", imuDataReceived.yaw);
-            telemetry_transmit("ACX", imuDataReceived.accelX);
-            telemetry_transmit("ACY", imuDataReceived.accelY);
-            telemetry_transmit("ACZ", imuDataReceived.accelZ);
-            telemetry_transmit("GYX", imuDataReceived.gyroX);
-            telemetry_transmit("GYY", imuDataReceived.gyroY);
-            telemetry_transmit("GYZ", imuDataReceived.gyroZ);
-            telemetry_transmit("MGX", imuDataReceived.magX);
-            telemetry_transmit("MGY", imuDataReceived.magY);
-            telemetry_transmit("MGZ", imuDataReceived.magZ);
-        }
-
-        // Transmit Radio data if available.
-        if (osMessageQueueGetCount(radioQueueHandle) > 0) {
-            osMessageQueueGet(radioQueueHandle, (void *)&radioDataReceived, NULL, osWaitForever);
-            telemetry_transmit("RW1", (float)radioDataReceived.ch1);
-            telemetry_transmit("RW2", (float)radioDataReceived.ch2);
-            telemetry_transmit("RW3", (float)radioDataReceived.ch3);
-            telemetry_transmit("RW4", (float)radioDataReceived.ch4);
-        }
-
-        // Transmit Control data if available.
-        if (osMessageQueueGetCount(controlQueueHandle) > 0) {
-            osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
-            telemetry_transmit("CT1", (float)controlDataReceived.ctrl1);
-            telemetry_transmit("CT2", (float)controlDataReceived.ctrl2);
-            telemetry_transmit("CT3", (float)controlDataReceived.ctrl3);
-            telemetry_transmit("CT4", (float)controlDataReceived.ctrl4);
-            telemetry_transmit("CT5", (float)controlDataReceived.ctrl5);
-            telemetry_transmit("CT6", (float)controlDataReceived.ctrl6);
-        }
-
-        // Example: receive a variable (e.g., "MOD") from the circular DMA buffer.
-        {
-            if (telemetry_receive("MOD", &modValue)) {
-            }
-        }
-
+    	// Start RX DMA (assumes this only needs to be done once)
+    	telemetry_start_rx_dma();
+    	telemetry_initialized = 1;
     }
+
+	// Send a simple "OK" heartbeat
+	snprintf(uartTxBuffer, sizeof(uartTxBuffer), "OK\r\n");
+	HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
+
+	// Transmit ADC data if available.
+	if (osMessageQueueGetCount(adcQueueHandle) > 0) {
+		osMessageQueueGet(adcQueueHandle, (void *)&adcDataReceived, NULL, osWaitForever);
+		telemetry_transmit("DIR", adcDataReceived.windDirection);
+		telemetry_transmit("BAT", adcDataReceived.batteryVoltage);
+		telemetry_transmit("EX1", adcDataReceived.extra1);
+		telemetry_transmit("EX2", adcDataReceived.extra2);
+	}
+
+	// Transmit IMU data if available and initialized.
+	if (osMessageQueueGetCount(imuQueueHandle) > 0 && is_imu_initialized()) {
+		osMessageQueueGet(imuQueueHandle, (void *)&imuDataReceived, NULL, osWaitForever);
+		telemetry_transmit("ROL", imuDataReceived.roll);
+		telemetry_transmit("PIT", imuDataReceived.pitch);
+		telemetry_transmit("YAW", imuDataReceived.yaw);
+		telemetry_transmit("ACX", imuDataReceived.accelX);
+		telemetry_transmit("ACY", imuDataReceived.accelY);
+		telemetry_transmit("ACZ", imuDataReceived.accelZ);
+		telemetry_transmit("GYX", imuDataReceived.gyroX);
+		telemetry_transmit("GYY", imuDataReceived.gyroY);
+		telemetry_transmit("GYZ", imuDataReceived.gyroZ);
+		telemetry_transmit("MGX", imuDataReceived.magX);
+		telemetry_transmit("MGY", imuDataReceived.magY);
+		telemetry_transmit("MGZ", imuDataReceived.magZ);
+	}
+
+	// Transmit Radio data if available.
+	if (osMessageQueueGetCount(radioQueueHandle) > 0) {
+		osMessageQueueGet(radioQueueHandle, (void *)&radioDataReceived, NULL, osWaitForever);
+		telemetry_transmit("RW1", (float)radioDataReceived.ch1);
+		telemetry_transmit("RW2", (float)radioDataReceived.ch2);
+		telemetry_transmit("RW3", (float)radioDataReceived.ch3);
+		telemetry_transmit("RW4", (float)radioDataReceived.ch4);
+	}
+
+	// Transmit Control data if available.
+	if (osMessageQueueGetCount(controlQueueHandle) > 0) {
+		osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
+		telemetry_transmit("CT1", (float)controlDataReceived.ctrl1);
+		telemetry_transmit("CT2", (float)controlDataReceived.ctrl2);
+		telemetry_transmit("CT3", (float)controlDataReceived.ctrl3);
+		telemetry_transmit("CT4", (float)controlDataReceived.ctrl4);
+		telemetry_transmit("CT5", (float)controlDataReceived.ctrl5);
+		telemetry_transmit("CT6", (float)controlDataReceived.ctrl6);
+	}
+
+	// Example: receive a variable (e.g., "MOD") from the circular DMA buffer.
+	{
+		if (telemetry_receive("MOD", &modValue)) {
+		}
+	}
+
 }

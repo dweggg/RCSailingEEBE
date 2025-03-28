@@ -46,20 +46,11 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define CONTROL_DELAY 10
-#define TELEMETRY_DELAY 50
+#define TELEMETRY_DELAY 10
 #define IMU_DELAY 10
 #define ADC_DELAY 10
 
 #define INCLUDE_vTaskList               1
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-__attribute__((used))
-const int uxTopUsedPriority = configMAX_PRIORITIES - 1;
-#ifdef __cplusplus
-}
-#endif
 
 /* USER CODE END PD */
 
@@ -150,6 +141,10 @@ unsigned long getRunTimeCounterValue(void);
 __weak void configureTimerForRunTimeStats(void)
 {
     HAL_TIM_Base_Start_IT(&htim11);
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+
+    DWT->CTRL |= 1;
+    DWT->CYCCNT = 0;
 }
 
 extern volatile unsigned long ulHighFrequencyTimerTicks;

@@ -1,0 +1,4 @@
+../Core/Src/TELEMETRY.c:41:13:telemetry_transmit	24	static
+../Core/Src/TELEMETRY.c:52:13:telemetry_start_rx_dma	8	static
+../Core/Src/TELEMETRY.c:59:6:telemetry_receive	32	static
+../Core/Src/TELEMETRY.c:114:6:telemetry	8	static

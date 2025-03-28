@@ -39,7 +39,7 @@ def send_sensor(sensor, value):
         raise ValueError("Value must be a number.")
 
     if ser and ser.is_open:
-        message = f"{sensor}:{value:.5f}\r\n"  # Format with five decimal places
+        message = f"{sensor}:{value:.2f}\r\n"  # Format with five decimal places
         try:
             ser.write(message.encode("utf-8"))  # Send the message
             ser.flush()
