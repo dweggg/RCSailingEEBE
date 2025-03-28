@@ -11,6 +11,5 @@ if sys.platform.startswith('linux'):
 
 # --- Configuration ---
 BAUD_RATE = 115200
-UPDATE_INTERVAL_MS = 25      # Update interval in milliseconds
-MAX_POINTS = 2000             # Maximum data points to store per channel
-MODEL_PATH = 'boat_model.STL'
+UPDATE_INTERVAL_MS = 5      # Update interval in milliseconds
+MAX_POINTS = 10000             # Maximum data points to store per channel

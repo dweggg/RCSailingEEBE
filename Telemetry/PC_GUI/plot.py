@@ -21,7 +21,8 @@ class DynamicPlot(QtWidgets.QWidget):
         self.init_ui()
         self.setAcceptDrops(True)
         self.setStyleSheet("border: 2px solid gray;")
-        self.display_mode = False  # Track the current display mode
+        # Instead of a boolean flag, use a string: "plot", "display", or "xy"
+        self.mode = "plot"  
 
         # Persistent widgets for display mode:
         # For TX sensors, a container with a sensor name label and an editable QLineEdit.
@@ -38,11 +39,12 @@ class DynamicPlot(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         
-        # Create the plot widget with grid and legend.
+        # Create the plot widget with grid.
         self.plot = pg.PlotWidget()
         self.plot.showGrid(x=True, y=True)
         self.plot.setAcceptDrops(False)
         self.plot.viewport().setAcceptDrops(False)
+        # Create the legend.
         self.legend = self.plot.addLegend(offset=(10, 10))
         self.legend.anchor = (0, 0)
         self.layout.addWidget(self.plot)
@@ -54,13 +56,12 @@ class DynamicPlot(QtWidgets.QWidget):
         self.time_window_edit.setStyleSheet(
             "background-color: rgba(200, 200, 200, 150); border: 1px solid gray; border-radius: 5px;"
         )
-        # Position it at the top left (you can adjust this as needed)
+        # Position it at the top left (adjust as needed)
         self.time_window_edit.move(10, 5)
-        # Optional: update the range when the user finishes editing.
         self.time_window_edit.editingFinished.connect(self.update_plot)
 
         # Remove button.
-        self.remove_button = QtWidgets.QPushButton("✖")
+        self.remove_button = QtWidgets.QPushButton("X")
         self.remove_button.setParent(self)
         self.remove_button.setFixedSize(20, 20)
         self.remove_button.move(self.width() - 25, 5)
@@ -70,14 +71,15 @@ class DynamicPlot(QtWidgets.QWidget):
         self.remove_button.clicked.connect(self.remove_self)
 
         # Toggle mode button.
-        self.toggle_button = QtWidgets.QPushButton("D")
-        self.toggle_button.setFixedSize(20, 20)
+        # This button now cycles through three modes: plot, display, and xy.
+        self.toggle_button = QtWidgets.QPushButton("P")
+        self.toggle_button.setFixedSize(40, 20)
         self.toggle_button.setStyleSheet(
             "background-color: rgba(0, 255, 0, 150); color: white; border-radius: 10px; font-weight: bold;"
         )
         self.toggle_button.clicked.connect(self.toggle_mode)
         self.toggle_button.setParent(self)
-        self.toggle_button.move(self.width() - 50, 5)
+        self.toggle_button.move(self.width() - 70, 5)
 
         # Container for display mode widgets.
         self.display_container = QtWidgets.QWidget(self)
@@ -94,29 +96,31 @@ class DynamicPlot(QtWidgets.QWidget):
         """Update remove and toggle button positions when resizing the plot."""
         super().resizeEvent(event)
         self.remove_button.move(self.width() - 25, 5)
-        self.toggle_button.move(self.width() - 50, 5)
+        self.toggle_button.move(self.width() - 70, 5)
 
     def add_sensor(self, sensor):
-        """Adds a new sensor stream to the plot if not already present."""
-        if sensor in self.sensor_keys_assigned:
-            return  
-        
-        self.sensor_keys_assigned.append(sensor)
-        color = self.get_color(sensor)
-        curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
-        self.curves[sensor] = curve
-        self.update_legend()
 
-        # If in display mode, add the corresponding display widget.
-        if self.display_mode:
-            self.add_display_widget(sensor)
+        if self.mode != "xy":
+            """Adds a new sensor stream to the plot if not already present."""
+            if sensor in self.sensor_keys_assigned:
+                return  
+            
+            self.sensor_keys_assigned.append(sensor)
+            color = self.get_color(sensor)
+            curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
+            self.curves[sensor] = curve
+            self.update_legend()
+
+            # If in display mode, add the corresponding display widget.
+            if self.mode == "display":
+                self.add_display_widget(sensor)
 
     def add_display_widget(self, sensor):
         """Add a display widget for a newly added sensor based on its direction."""
         if get_sensor_direction(sensor) == 'TX':
             if sensor not in self.tx_widgets:
                 container = QtWidgets.QWidget()
-                container.setStyleSheet("border: none;")  # Remove borders for clean UI
+                container.setStyleSheet("border: none;")
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
@@ -136,7 +140,7 @@ class DynamicPlot(QtWidgets.QWidget):
         else:
             if sensor not in self.rx_widgets:
                 container = QtWidgets.QWidget()
-                container.setStyleSheet("border: none;")  # Remove borders for clean UI
+                container.setStyleSheet("border: none;")
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
@@ -150,7 +154,6 @@ class DynamicPlot(QtWidgets.QWidget):
                 h_layout.addWidget(output_field)
                 self.rx_widgets[sensor] = (container, name_label, output_field)
                 self.display_layout.addWidget(container)
-
 
     def remove_sensor(self, sensor):
         """Removes an existing sensor stream from the plot."""
@@ -171,18 +174,21 @@ class DynamicPlot(QtWidgets.QWidget):
 
     def update_legend(self):
         """Updates the legend based on the current sensor streams."""
+        # Recreate the legend if it does not exist.
+        if not hasattr(self, "legend") or self.legend is None:
+            self.legend = self.plot.addLegend(offset=(10, 10))
+            self.legend.anchor = (0, 0)
         self.legend.clear()
         for sensor in self.sensor_keys_assigned:
             if sensor in self.curves:
                 self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
     
-
     def get_color(self, sensor):
         """Return a color for the sensor. If not assigned, generate and store a new color."""
         if sensor in self.sensor_colors:
             return self.sensor_colors[sensor]
 
-        # Predefined base colors for initial sensors
+        # Predefined base colors.
         base_colors = [
             (255, 0, 0),
             (0, 255, 0),
@@ -196,80 +202,166 @@ class DynamicPlot(QtWidgets.QWidget):
         if len(self.sensor_colors) < len(base_colors):
             new_color = base_colors[len(self.sensor_colors)]
         else:
-            # Generate a new color dynamically using HSV
-            hue = (len(self.sensor_colors) * 37) % 360  # Spread colors around the hue wheel
-            hsv_color = pg.hsvColor(hue / 360.0, 1.0, 1.0)  # Normalize hue to [0,1]
-            new_color = hsv_color.getRgb()[:3]  # Extract RGB tuple
-
+            # Generate a new color dynamically using HSV.
+            hue = (len(self.sensor_colors) * 37) % 360
+            hsv_color = pg.hsvColor(hue / 360.0, 1.0, 1.0)
+            new_color = hsv_color.getRgb()[:3]
         self.sensor_colors[sensor] = new_color
         return new_color
-
         
     def update_plot(self, data_history=data_history):
-        # Update plot curves.
+        """Updates the plot based on the current mode."""
+        if self.mode == "xy":
+            self.update_xy_plot()
+        elif self.mode == "display":
+            self.update_display_widgets(data_history)
+        else:
+            # Regular time-series plot mode.
+            current_time = time.time() - start_time
+            for sensor in self.sensor_keys_assigned:
+                if sensor in data_history and len(data_history[sensor]) > 0:
+                    last_value = data_history[sensor][-1][0]
+                    last_timestamp = data_history[sensor][-1][1]
+                    if current_time - last_timestamp >= 0.5:  # 500ms interval.
+                        data_history[sensor].append((last_value, current_time))
+                    times = [entry[1] for entry in data_history[sensor]]
+                    values = [entry[0] for entry in data_history[sensor]]
+                    self.curves[sensor].setData(times, values)
+            try:
+                time_window = float(self.time_window_edit.text())
+            except ValueError:
+                time_window = 0
+            if time_window > 0:
+                self.plot.setXRange(max(0, current_time - time_window), current_time)
+            else:
+                self.plot.enableAutoRange(axis='x')
+                
+    def update_xy_plot(self):
+        """Updates the XY plot using the first sensor as x-axis and the second as y-axis."""
+        if len(self.sensor_keys_assigned) < 2:
+            return
+        
+        x_sensor = self.sensor_keys_assigned[0]
+        y_sensor = self.sensor_keys_assigned[1]
         current_time = time.time() - start_time
-        for sensor in self.sensor_keys_assigned:
-            if sensor in data_history and len(data_history[sensor]) > 0:
-                # Extract the last timestamp and value from the history
-                last_value = data_history[sensor][-1][0]
-                last_timestamp = data_history[sensor][-1][1]
-
-                # Get the current timestamp and append value if needed
-                if current_time - last_timestamp >= 0.5:  # 500ms
-                    data_history[sensor].append((last_value, current_time))
-
-                # Extract time and data for plotting
-                times = [entry[1] for entry in data_history[sensor]]
-                values = [entry[0] for entry in data_history[sensor]]
-
-                # Update the plot data for this sensor
-                self.curves[sensor].setData(times, values)
-
-        # Apply time window if specified.
         try:
             time_window = float(self.time_window_edit.text())
         except ValueError:
             time_window = 0
 
-        if time_window > 0:
-            # Force the x-axis to show only the last 'time_window' seconds.
-            self.plot.setXRange(max(0, current_time - time_window), current_time)
-        else:
-            # If time window is 0 (or invalid), auto-range to show all data.
-            self.plot.enableAutoRange(axis='x')
-
-        # In display mode, update the display widgets.
-        if self.display_mode:
-            self.update_display_widgets(data_history)
+        x_data = data_history.get(x_sensor, [])
+        y_data = data_history.get(y_sensor, [])
         
+        if time_window > 0:
+            x_data = [entry for entry in x_data if entry[1] >= current_time - time_window]
+            y_data = [entry for entry in y_data if entry[1] >= current_time - time_window]
+        
+        n = min(len(x_data), len(y_data))
+        if n == 0:
+            return
+
+        x_vals = [x_data[i][0] for i in range(n)]
+        y_vals = [y_data[i][0] for i in range(n)]
+        
+        if hasattr(self, "xy_curve"):
+            self.xy_curve.setData(x_vals, y_vals)
+        else:
+            self.xy_curve = self.plot.plot(x_vals, y_vals, pen=pg.mkPen(width=2), name="")
+        
+        if hasattr(self, "xy_marker"):
+            self.xy_marker.setData([x_vals[-1]], [y_vals[-1]])
+        else:
+            self.xy_marker = pg.ScatterPlotItem(
+                size=10, 
+                pen=pg.mkPen(None), 
+                brush=pg.mkBrush('r')
+            )
+            self.xy_marker.setData([x_vals[-1]], [y_vals[-1]])
+            self.plot.addItem(self.xy_marker)
+        
+        self.plot.setLabel('bottom', get_sensor_name(x_sensor))
+        self.plot.setLabel('left', get_sensor_name(y_sensor))
+
+    def update_display_widgets(self, data_history):
+        """Update display widget text for each sensor."""
+        for sensor in self.sensor_keys_assigned:
+            value = None
+            if sensor in data_history and data_history[sensor]:
+                value = data_history[sensor][-1][0]
+            
+            if get_sensor_direction(sensor) == 'TX':
+                current_value = self.last_tx_values.get(sensor, value)
+                container, name_label, input_field = self.tx_widgets[sensor]
+                if not input_field.hasFocus():
+                    input_field.setText(str(current_value) if current_value is not None else "")
+            else:
+                container, name_label, output_field = self.rx_widgets[sensor]
+                output_field.setText(str(value) if value is not None else "No data available")
+
     def mousePressEvent(self, event):
         FocusManager.set_active(self)
         self.selected_signal.emit(self)
         super().mousePressEvent(event)
 
     def toggle_mode(self):
-        """Switch between plot mode and display mode."""
-        self.display_mode = not self.display_mode
-        if self.display_mode:
-            self.toggle_button.setText("P")
+        """Cycle through three modes: plot, display, and xy."""
+        if self.mode == "plot":
+            self.mode = "display"
+            self.toggle_button.setText("D")
             self.plot.hide()
-            self.display_container.show()  
+            self.display_container.show()
             self.remove_button.raise_()
             self.toggle_button.raise_()
             self.populate_display_mode()
-        else:
-            self.toggle_button.setText("D")
+        elif self.mode == "display":
+            self._backup_sensor_keys = list(self.sensor_keys_assigned)
+            self.mode = "xy"
+            self.toggle_button.setText("XY")
+            self.display_container.hide()
             self.plot.show()
-            self.display_container.hide()  
+            # Clear the plot for xy mode.
+            self.plot.clear()
+            # In xy mode we do not need a legend.
+            self.curves = {}
+            if len(self._backup_sensor_keys) >= 2:
+                self.sensor_keys_assigned = self._backup_sensor_keys[:2]
+            else:
+                self.sensor_keys_assigned = self._backup_sensor_keys
+            if not hasattr(self, "xy_curve"):
+                self.xy_curve = self.plot.plot(pen=pg.mkPen(width=2), name="")
+            self.update_xy_plot()
+        elif self.mode == "xy":
+            self.mode = "plot"
+            self.toggle_button.setText("P")
+            self.display_container.hide()
+            self.plot.show()
+            if hasattr(self, "xy_curve"):
+                self.plot.removeItem(self.xy_curve)
+                del self.xy_curve
+            if hasattr(self, "xy_marker"):
+                self.plot.removeItem(self.xy_marker)
+                del self.xy_marker
+            if hasattr(self, "_backup_sensor_keys"):
+                self.sensor_keys_assigned = self._backup_sensor_keys
+                del self._backup_sensor_keys
+            # Clear the plot and reinitialize the legend.
+            self.plot.clear()
+            self.legend = self.plot.addLegend(offset=(10, 10))
+            self.legend.anchor = (0, 0)
+            self.curves = {}
+            for sensor in self.sensor_keys_assigned:
+                color = self.get_color(sensor)
+                self.curves[sensor] = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=get_sensor_name(sensor))
+            self.plot.setLabel('bottom', "")
+            self.plot.setLabel('left', "")
+            self.update_plot()
 
     def populate_display_mode(self):
         """(Re)populate the display layout with persistent widgets for each sensor."""
-        # Clear the layout without deleting our persistent widgets.
         while self.display_layout.count():
             item = self.display_layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
-
         for sensor in self.sensor_keys_assigned:
             if get_sensor_direction(sensor) == 'TX':
                 if sensor not in self.tx_widgets:
@@ -281,57 +373,22 @@ class DynamicPlot(QtWidgets.QWidget):
                     self.add_display_widget(sensor)
                 else:
                     self.display_layout.addWidget(self.rx_widgets[sensor][0])
-        
-        # Update displayed text immediately.
-        self.update_display_widgets({})
-
-    def update_display_widgets(self, data_history):
-        """Update display widget text.
-           For TX sensors, if a last sent value exists, show it;
-           otherwise, if data is available, show that value.
-           For RX sensors, update the read-only field with the latest data.
-           TX updates occur only if the field is not focused.
-        """
-        for sensor in self.sensor_keys_assigned:
-            value = None
-            if sensor in data_history and data_history[sensor]:
-                value = data_history[sensor][-1][0]
-            
-            if get_sensor_direction(sensor) == 'TX':
-                # Prioritize the last sent value.
-                current_value = self.last_tx_values.get(sensor, value)
-                container, name_label, input_field = self.tx_widgets[sensor]
-                if not input_field.hasFocus():
-                    input_field.setText(str(current_value) if current_value is not None else "")
-            else:
-                # RX sensors: update the read-only QLineEdit.
-                container, name_label, output_field = self.rx_widgets[sensor]
-                if value is not None:
-                    output_field.setText(str(value))
-                else:
-                    output_field.setText("No data available")
+        self.update_display_widgets(data_history)
 
     def on_return_pressed(self, sensor, input_field):
-        """Handles Enter key press: converts text to float, stores it, updates data_history, and flashes the background."""
+        """Handles Enter key press: converts text to float, updates data, and flashes the input field."""
         try:
             new_value = float(input_field.text())
         except ValueError:
-            return  # Ignore invalid input
+            return
 
         send_sensor(sensor, new_value)
-
-        # Update the data history.
         if sensor not in data_history:
             data_history[sensor] = []
         data_history[sensor].append((new_value, time.time() - start_time))
-
-        # Store the last sent value.
         self.last_tx_values[sensor] = new_value
-
-        # Flash the background of the input field to green for confirmation.
         input_field.setStyleSheet("background-color: green; font-size: 24px; font-weight: bold;")
         QtCore.QTimer.singleShot(150, lambda: input_field.setStyleSheet("font-size: 24px; font-weight: bold;"))
-
         print(f"Updated {sensor} with value: {new_value}")
 
     def clear_layout(self, layout):
@@ -348,5 +405,5 @@ class DynamicPlot(QtWidgets.QWidget):
         return {
             "geometry": {"x": geom[0], "y": geom[1], "width": geom[2], "height": geom[3]},
             "sensor_keys": self.sensor_keys_assigned,
-            "display_mode": "display" if self.display_mode else "plot"
+            "mode": self.mode
         }

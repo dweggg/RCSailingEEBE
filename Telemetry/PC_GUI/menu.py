@@ -35,12 +35,6 @@ def import_layout(main_window, tiling_area):
         except Exception as e:
             QtWidgets.QMessageBox.critical(main_window, "Error", f"Failed to import layout: {e}")
 
-def import_variables(main_window):
-    """Dummy function for importing variables."""
-    QtWidgets.QMessageBox.information(
-        main_window, "Import Variables", "Dummy: Variables imported successfully."
-    )
-
 def setup_menu_bar(main_window, tiling_area):
     """
     Set up the menu bar for main_window with actions:
@@ -61,9 +55,3 @@ def setup_menu_bar(main_window, tiling_area):
     export_layout_action.triggered.connect(lambda: export_layout(main_window, tiling_area))
     layout_menu.addAction(export_layout_action)
     
-    # --- Variables Menu ---
-    variables_menu = menu_bar.addMenu("Variables")
-    
-    import_variables_action = QtGui.QAction("Import Variables", main_window)
-    import_variables_action.triggered.connect(lambda: import_variables(main_window))
-    variables_menu.addAction(import_variables_action)
