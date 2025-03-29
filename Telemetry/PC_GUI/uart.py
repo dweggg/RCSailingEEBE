@@ -38,6 +38,7 @@ def send_sensor(sensor, value):
     
     Protocol format: "KEY:%.?f\r\n" where ? depends on the value precision.
     """
+    global ser
     if not isinstance(value, (int, float)):
         raise ValueError("Value must be a number.")
     if ser and ser.is_open:
@@ -45,7 +46,15 @@ def send_sensor(sensor, value):
         try:
             ser.write(message.encode("utf-8"))
             ser.flush()
-        except serial.SerialException as e:
+        except (serial.SerialException, OSError) as e:
+            # Log the error and close the port to avoid repeated errors.
+            print(f"Error sending data on serial port: {e}")
             QtWidgets.QMessageBox.critical(None, "Serial Port Error", f"Error sending data:\n{e}")
+            try:
+                ser.close()
+            except Exception:
+                pass
+            ser = None
     else:
         QtWidgets.QMessageBox.warning(None, "Serial Port Warning", "Serial port is not open.")
+

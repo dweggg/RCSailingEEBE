@@ -154,9 +154,10 @@ main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRigh
 #ser = open_serial_port(select_serial_port())
 
 # --- Update Function ---
+
 def update():
     """Fetch serial data, update plots, rotate the 3D model (if visible) and update indicators."""
-    global last_ok_time
+    global last_ok_time, ser
 
     if not freeze_plots and ser is not None:
         try:
@@ -178,10 +179,18 @@ def update():
                     data_history[key].append((value, time.time() - start_time))
                     if len(data_history[key]) > MAX_POINTS:
                         data_history[key] = data_history[key][-MAX_POINTS:]
-        except OSError as e:
+        except (OSError, serial.SerialException) as e:
+            # Instead of spamming a message box on each update, log the error, close the port,
+            # and let the user reselect a port.
+            print(f"Error reading from serial port: {e}")
             QtWidgets.QMessageBox.critical(main_window, "Serial Port Error",
-                                           f"Error reading from serial port:\n{e}")
-    
+                                           f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
+            try:
+                ser.close()
+            except Exception:
+                pass
+            ser = None
+
         for plot in tiling_area.plots.keys():
             plot.update_plot(data_history)
     
@@ -197,6 +206,7 @@ def update():
     
         log_data(data_history)
 
+    # Update the OK indicator based on whether we have a connection.
     if ser is None or time.time() - last_ok_time > 1:
         ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
     else:
@@ -206,7 +216,7 @@ def update():
         freeze_indicator.setStyleSheet("background-color: blue; border-radius: 10px;")
     else:
         freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
-
+        
 # --- Timer for Updates ---
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
