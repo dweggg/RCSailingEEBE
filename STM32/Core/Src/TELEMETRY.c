@@ -159,13 +159,13 @@ void telemetry(void) {
 
 	// Transmit Control data if available.
 	if (osMessageQueueGetCount(controlQueueHandle) > 0) {
-		osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
-		telemetry_transmit("CT1", (float)controlDataReceived.ctrl1);
-		telemetry_transmit("CT2", (float)controlDataReceived.ctrl2);
-		telemetry_transmit("CT3", (float)controlDataReceived.ctrl3);
-		telemetry_transmit("CT4", (float)controlDataReceived.ctrl4);
-		telemetry_transmit("CT5", (float)controlDataReceived.ctrl5);
-		telemetry_transmit("CT6", (float)controlDataReceived.ctrl6);
+	    ControlData_t controlDataReceived;
+	    osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
+
+	    telemetry_transmit("RUD", controlDataReceived.rudder);
+	    telemetry_transmit("TWI", controlDataReceived.twist);
+	    telemetry_transmit("TRI",  controlDataReceived.trim);
+	    //telemetry_transmit("CEX", controlDataReceived.extra);
 	}
 
     float modeValue = 0.0f;

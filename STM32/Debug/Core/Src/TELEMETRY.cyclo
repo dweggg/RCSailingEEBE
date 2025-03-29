@@ -1,4 +1,0 @@
-../Core/Src/TELEMETRY.c:40:13:telemetry_transmit	1
-../Core/Src/TELEMETRY.c:51:13:telemetry_start_rx_dma	1
-../Core/Src/TELEMETRY.c:58:6:telemetry_receive	8
-../Core/Src/TELEMETRY.c:113:6:telemetry	8

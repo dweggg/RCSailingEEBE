@@ -18,13 +18,12 @@ typedef struct {
 } RadioData_t;
 
 typedef struct {
-    float ctrl1;
-    float ctrl2;
-    float ctrl3;
-    float ctrl4;
-    float ctrl5;
-    float ctrl6;
+    float rudder;
+    float twist;
+    float trim;
+    float extra;
 } ControlData_t;
+
 
 typedef enum {
     MODE_CALIBRATION  = -1,  // Calibration mode

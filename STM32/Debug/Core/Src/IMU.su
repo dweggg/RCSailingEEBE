@@ -1,2 +1,0 @@
-../Core/Src/IMU.c:22:6:imu_read	56	static
-../Core/Src/IMU.c:68:5:is_imu_initialized	4	static

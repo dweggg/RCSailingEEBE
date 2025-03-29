@@ -66,7 +66,14 @@
 /* Global static variables (available to all functions) */
 static ImuData_t imu;
 static RadioData_t radioDataReceived;
+static ControlData_t controlDataSent;
 static ControlMode_t currentMode = MODE_DIRECT_INPUT;
+
+/* External queue handles */
+extern osMessageQueueId_t radioQueueHandle;
+extern osMessageQueueId_t telemetryQueueHandle;
+extern osMessageQueueId_t imuQueueHandle;
+extern osMessageQueueId_t controlQueueHandle;
 
 /* Forward declarations for radio input helpers */
 static float get_radio_ch1(void);
@@ -95,6 +102,7 @@ static float map_radio_to_mech_twist(float radio_val) {
     return ((radio_val * (TWIST_MECH_MAX - TWIST_MECH_MIN)) + TWIST_MECH_MIN);
 }
 
+// meh we'll use it maybe
 static float map_radio_to_mech_extra(float radio_val) {
     return ((radio_val * (EXTRA_MECH_MAX - EXTRA_MECH_MIN)) + EXTRA_MECH_MIN);
 }
@@ -212,34 +220,27 @@ float roll_control(void) {
 /* and then command each servo via the conversion chain         */
 /*------------------------------------------------*/
 static void handleDirectInputMode(void) {
-    float rudder_mech = map_radio_to_mech_rudder(get_radio_ch1());
-    float trim_mech   = map_radio_to_mech_trim(get_radio_ch2());
-    float twist_mech  = map_radio_to_mech_twist(get_radio_ch3());
-    float extra_mech  = map_radio_to_mech_extra(get_radio_ch4());
-
-    set_rudder(rudder_mech);
-    set_trim(trim_mech);
-    set_twist(twist_mech);
-    set_extra(extra_mech);
+    controlDataSent.rudder = map_radio_to_mech_rudder(get_radio_ch1());
+    controlDataSent.trim   = map_radio_to_mech_trim(get_radio_ch2());
+    controlDataSent.twist  = map_radio_to_mech_twist(get_radio_ch3());
+    /* Now send the control command to the control queue */
+    osMessageQueuePut(controlQueueHandle, &controlDataSent, 0, 0);
 }
 
 
+/* Auto Control Mode 1 */
 static void autoControlMode1(void) {
-    float rudder_mech, twist_mech, trim_mech;
+    /* For the rudder, average radio channels 2 and 4 then map to mechanical angle */
+    controlDataSent.rudder = map_radio_to_mech_rudder((get_radio_ch2() + get_radio_ch4()) * 0.5F);
 
-    /*
-     * For the rudder, we average radio channels 2 and 4 (each normalized from calibration)
-     * then map that percentage to a mechanical angle.
-     */
-    rudder_mech = map_radio_to_mech_rudder((get_radio_ch2() + get_radio_ch4()) * 0.5F);
-    set_rudder(rudder_mech);
+    /* Calculate twist using a roll controller */
+    controlDataSent.twist = roll_control();
 
-    twist_mech = roll_control();
-    set_twist(twist_mech);
+    /* For trim, map radio channel 1 directly */
+    controlDataSent.trim = map_radio_to_mech_trim(get_radio_ch1());
 
-    /* For trim, directly map radio channel 1 to mechanical angle */
-    trim_mech = map_radio_to_mech_trim(get_radio_ch1());
-    set_trim(trim_mech);
+    /* Send the calculated control angles to the control queue */
+    osMessageQueuePut(controlQueueHandle, &controlDataSent, 0, 0);
 }
 
 /* Auto Control Mode 2 */
@@ -282,11 +283,6 @@ static void handleAutoControlMode(ControlMode_t mode) {
 /* MAIN CONTROL FUNCTION (High-level flow) */
 /*-----------------------------------------*/
 
-/* External queue handles */
-extern osMessageQueueId_t radioQueueHandle;
-extern osMessageQueueId_t telemetryQueueHandle;
-extern osMessageQueueId_t imuQueueHandle;
-
 /* Forward declarations for calibration and direct input routines */
 static void handleCalibrationMode(void);
 static void handleDirectInputMode(void);
@@ -328,9 +324,14 @@ void control(void) {
             handleAutoControlMode(currentMode);
             break;
         default:
-            // Unknown mode: safely handle if necessary
+            // Unknown mode: implement safe behavior if needed
             break;
     }
+
+    set_rudder(controlDataSent.rudder);
+    set_twist(controlDataSent.twist);
+    set_trim(controlDataSent.trim);
+    set_extra(controlDataSent.extra);
 }
 
 /*------------------------------------------------*/
