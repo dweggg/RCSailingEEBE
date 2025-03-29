@@ -118,6 +118,11 @@ osMessageQueueId_t controlQueueHandle;
 const osMessageQueueAttr_t controlQueue_attributes = {
   .name = "controlQueue"
 };
+/* Definitions for telemetryQueue */
+osMessageQueueId_t telemetryQueueHandle;
+const osMessageQueueAttr_t telemetryQueue_attributes = {
+  .name = "telemetryQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -212,6 +217,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of controlQueue */
   controlQueueHandle = osMessageQueueNew (1, sizeof(ControlData_t), &controlQueue_attributes);
 
+  /* creation of telemetryQueue */
+  telemetryQueueHandle = osMessageQueueNew (1, sizeof(TelemetryData_t), &telemetryQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
 
@@ -220,6 +228,7 @@ void MX_FREERTOS_Init(void) {
   vQueueAddToRegistry( adcQueueHandle, "adcQueue" );
   vQueueAddToRegistry( imuQueueHandle, "imuQueue" );
   vQueueAddToRegistry( controlQueueHandle, "controlQueue" );
+  vQueueAddToRegistry( telemetryQueueHandle, "telemetryQueue" );
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */

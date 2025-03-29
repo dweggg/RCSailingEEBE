@@ -12,6 +12,11 @@
 #include "IMU.h"
 #include "ANALOG.h"
 
+
+typedef struct {
+    ControlMode_t mode;
+} TelemetryData_t;
+
 void telemetry(void);
 
 #endif /* INC_TELEMETRY_H_ */

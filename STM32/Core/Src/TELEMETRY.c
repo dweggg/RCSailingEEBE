@@ -18,6 +18,7 @@ extern osMessageQueueId_t adcQueueHandle;
 extern osMessageQueueId_t imuQueueHandle;
 extern osMessageQueueId_t radioQueueHandle;
 extern osMessageQueueId_t controlQueueHandle;
+extern osMessageQueueId_t telemetryQueueHandle;
 
 AdcData_t    adcDataReceived;
 ImuData_t    imuDataReceived;
@@ -27,8 +28,6 @@ ControlData_t controlDataReceived;
 // DMA RX circular buffer
 #define RX_BUFFER_SIZE 16
 static char uartRxBuffer[RX_BUFFER_SIZE] = {0};
-float modValue = 0.0f;
-
 
 #define TX_BUFFER_SIZE 16
 static char uartTxBuffer[TX_BUFFER_SIZE];  // TX buffer (larger size for safety)
@@ -169,10 +168,13 @@ void telemetry(void) {
 		telemetry_transmit("CT6", (float)controlDataReceived.ctrl6);
 	}
 
-	// Example: receive a variable (e.g., "MOD") from the circular DMA buffer.
-	{
-		if (telemetry_receive("MOD", &modValue)) {
-		}
-	}
+    float modeValue = 0.0f;
+    if (telemetry_receive("MOD", &modeValue)) {
+        // Create a TelemetryData_t structure and assign the received value.
+        TelemetryData_t telemetryData;
+        telemetryData.mode = (ControlMode_t)(int)modeValue;
 
+        // Send the telemetry data over the telemetry queue.
+        osMessageQueuePut(telemetryQueueHandle, (void *)&telemetryData, 0, 0);
+    }
 }
