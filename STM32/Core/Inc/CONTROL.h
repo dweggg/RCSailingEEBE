@@ -5,26 +5,14 @@
  *      Author: dweggg
  */
 
-#ifndef INC_CONTROL_H_
-#define INC_CONTROL_H_
+#ifndef CONTROL_H_
+#define CONTROL_H_
 
 #include <stdint.h>
+#include "RADIO.h"
+#include "SERVO.h"
 
-typedef struct {
-    int16_t ch1;
-    int16_t ch2;
-    int16_t ch3;
-    int16_t ch4;
-} RadioData_t;
-
-typedef struct {
-    float rudder;
-    float twist;
-    float trim;
-    float extra;
-} ControlData_t;
-
-
+// Enumeration of the control modes.
 typedef enum {
     MODE_CALIBRATION  = -1,  // Calibration mode
     MODE_DIRECT_INPUT =  0,  // Direct input mode
@@ -34,6 +22,15 @@ typedef enum {
     MODE_AUTO_4       =  4   // Automatic control mode 4
 } ControlMode_t;
 
+// Structure to hold control output values (in mechanical angles).
+typedef struct {
+    float rudder;
+    float twist;
+    float trim;
+    float extra;
+} ControlData_t;
+
+// The main control task, which is run by the RTOS.
 void control(void);
 
-#endif /* INC_CONTROL_H_ */
+#endif /* CONTROL_H_ */
