@@ -26,6 +26,8 @@ typedef struct {
     float magX;
     float magY;
     float magZ;
+
+    float speed;
 } ImuData_t;
 
 void imu_read(void);

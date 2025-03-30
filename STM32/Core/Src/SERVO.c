@@ -29,11 +29,6 @@ static float saturate(float x, float min, float max) {
     return x;
 }
 
-// Map a normalized radio value to a mechanical angle.
-float map_radio_to_mech(float radio_val, float mech_min, float mech_max) {
-    return radio_val * (mech_max - mech_min) + mech_min;
-}
-
 uint32_t servo_angle_to_pulse(float servo_angle, float servo_min_angle, float servo_max_angle) {
     float pulse_ms = map(servo_angle, servo_min_angle, servo_max_angle, SERVO_PULSE_MIN_MS, SERVO_PULSE_MAX_MS);
     float compare_val = pulse_ms * TIMER_PERIOD / TIMER_FREQ;

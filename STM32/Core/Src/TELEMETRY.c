@@ -146,6 +146,7 @@ void telemetry(void) {
 		telemetry_transmit("MGX", imuDataReceived.magX);
 		telemetry_transmit("MGY", imuDataReceived.magY);
 		telemetry_transmit("MGZ", imuDataReceived.magZ);
+		telemetry_transmit("SPE", imuDataReceived.speed);
 	}
 
 	// Transmit Radio data if available.

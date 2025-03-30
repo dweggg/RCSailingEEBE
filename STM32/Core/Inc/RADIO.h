@@ -37,6 +37,8 @@ extern RadioCalibration_t radioCalibration;
 // Call this function periodically (or from an ISR) to update calibration boundaries.
 void update_radio_calibration(void);
 
+float map_radio(float radio_val, float min, float max);
+
 // Functions to get a normalized value (0.0–1.0) for each channel.
 float get_radio_ch1(void);
 float get_radio_ch2(void);

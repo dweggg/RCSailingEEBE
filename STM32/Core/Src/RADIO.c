@@ -60,6 +60,11 @@ static float normalize(uint32_t value, uint32_t min, uint32_t max) {
     return ((float)(value - min)) / (max - min);
 }
 
+// Map a normalized radio value to a mechanical angle.
+float map_radio(float radio_val, float min, float max) {
+    return radio_val * (max - min) + min;
+}
+
 float get_radio_ch1(void) {
     return normalize(radioDataSent.ch1, radioCalibration.ch1_min, radioCalibration.ch1_max);
 }

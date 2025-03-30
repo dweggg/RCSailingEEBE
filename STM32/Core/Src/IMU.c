@@ -8,6 +8,8 @@
 #include "IMU.h"
 #include "cmsis_os.h"      // For osMessageQueuePut
 #include "i2c.h"      // For osMessageQueuePut
+#include <math.h>
+
 extern osMessageQueueId_t imuQueueHandle;
 
 
@@ -19,6 +21,9 @@ ImuData_t imuDataSent= {0};
 int initialized = 0;
 enum _error_bno imu_error;
 
+static float speedX = 0.0f, speedY = 0.0f, speedZ = 0.0f;  // Current speed components
+static uint32_t lastUpdateTime = 0;  // Last time speed was updated
+
 void imu_read(void) {
 
     if (!initialized) {
@@ -29,12 +34,30 @@ void imu_read(void) {
     }
 
 
-    // Fetch accelerometer data (X, Y, Z)
+    // Fetch accelerometer data (already gravity-compensated)
     bno055_vec3_t accelData;
-    if (bno055_acc(&bno, &accelData) == BNO_OK) {
-    	imuDataSent.accelX = accelData.x;
-    	imuDataSent.accelY = accelData.y;
-    	imuDataSent.accelZ = accelData.z;
+    if (bno055_linear_acc(&bno, &accelData) == BNO_OK) {
+        imuDataSent.accelX = accelData.x;
+        imuDataSent.accelY = accelData.y;
+        imuDataSent.accelZ = accelData.z;
+
+        // Compute time difference (in seconds)
+        uint32_t currentTime = osKernelGetTickCount();
+        float deltaTime = (currentTime - lastUpdateTime) * 0.001f;  // Convert ms to s
+        lastUpdateTime = currentTime;
+
+        // Integrate acceleration to get speed (v = v0 + a * dt)
+        speedX += accelData.x * deltaTime;
+        speedY += accelData.y * deltaTime;
+        speedZ += accelData.z * deltaTime;
+
+        float accelMagnitude = sqrtf(accelData.x * accelData.x + accelData.y * accelData.y + accelData.z * accelData.z);
+        if (accelMagnitude < 0.1f) {
+            speedX = speedY = speedZ = 0.0f;
+        }
+
+        // Store the magnitude of speed (or individual components)
+        imuDataSent.speed = sqrtf(speedX * speedX + speedY * speedY + speedZ * speedZ);
     }
 
     // Fetch gyroscope data (X, Y, Z)
@@ -61,6 +84,8 @@ void imu_read(void) {
     	imuDataSent.yaw = eulerData.yaw;
     }
 
+
+    imuDataSent.speed = 0.0F;
     // Post the sensor data to the message queue.
     osMessageQueuePut(imuQueueHandle, &imuDataSent, 0, 0);
 }

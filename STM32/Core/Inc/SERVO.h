@@ -42,9 +42,6 @@
 #define EXTRA_SERVO_MIN_ANGLE     10.0F
 #define EXTRA_SERVO_MAX_ANGLE     170.0F
 
-// Functions for mapping a normalized value (0.0 to 1.0) to a mechanical angle.
-float map_radio_to_mech(float radio_val, float mech_min, float mech_max);
-
 // Functions that actually command the servo outputs.
 void set_servo_rudder(float mech_angle);
 void set_servo_trim(float mech_angle);

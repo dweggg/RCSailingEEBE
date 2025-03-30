@@ -31,10 +31,10 @@ static ControlMode_t currentMode = MODE_DIRECT_INPUT;
 // Simply maps normalized radio inputs to mechanical angles.
 static ControlData_t direct_input_control(void) {
     ControlData_t control;
-    control.rudder = map_radio_to_mech(get_radio_ch1(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
-    control.trim   = map_radio_to_mech(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
-    control.twist  = map_radio_to_mech(get_radio_ch3(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
-    control.extra  = map_radio_to_mech(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
+    control.rudder = map_radio(get_radio_ch1(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
+    control.trim   = map_radio(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    control.twist  = map_radio(get_radio_ch3(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
+    control.extra  = map_radio(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
     return control;
 }
 
@@ -62,16 +62,16 @@ static ControlData_t auto_control_mode1(void) {
     ControlData_t control;
 
     // Rudder servo is controlled directly with radio channel 2.
-    control.rudder = map_radio_to_mech(get_radio_ch2(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
+    control.rudder = map_radio(get_radio_ch2(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
 
     // Twist servo is automatically controller depending on the roll.
     control.twist = roll_controller(imu.roll);
 
     // Trim servo is controlled directly with radio channel 1.
-    control.trim = map_radio_to_mech(get_radio_ch1(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    control.trim = map_radio(get_radio_ch1(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
 
     // Extra channel (if used) from channel 4.
-    // control.extra = map_radio_to_mech(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
+    // control.extra = map_radio(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
     return control;
 }
 
