@@ -84,8 +84,6 @@ void imu_read(void) {
     	imuDataSent.yaw = eulerData.yaw;
     }
 
-
-    imuDataSent.speed = 0.0F;
     // Post the sensor data to the message queue.
     osMessageQueuePut(imuQueueHandle, &imuDataSent, 0, 0);
 }
