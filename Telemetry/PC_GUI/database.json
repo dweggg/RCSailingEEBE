@@ -12,6 +12,7 @@
         {"key": "ROL", "dir": "RX", "name": "Roll [deg]"},
         {"key": "PIT", "dir": "RX", "name": "Pitch [deg]"},
         {"key": "YAW", "dir": "RX", "name": "Yaw [deg]"},
+        {"key": "SPE", "dir": "RX", "name": "Speed [m/s]"},
 
         {"key": "DIR", "dir": "RX", "name": "Wind Direction [deg]"},
         {"key": "BAT", "dir": "RX", "name": "Battery Voltage [V]"},
@@ -26,6 +27,8 @@
         {"key": "RUD", "dir": "RX", "name": "Rudder [deg]"},
         {"key": "TWI", "dir": "RX", "name": "Twist [deg]"},
         {"key": "TRI", "dir": "RX", "name": "Trim [deg]"},
+
+        {"key": "CPU", "dir": "RX", "name": "CPU [%]"},
 
         {"key": "MOD", "dir": "TX", "name": "Mode"}
     ]

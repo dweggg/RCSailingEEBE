@@ -109,7 +109,6 @@ class DynamicPlot(QtWidgets.QWidget):
             color = self.get_color(sensor)
             curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
             self.curves[sensor] = curve
-            self.update_legend()
 
             # If in display mode, add the corresponding display widget.
             if self.mode == "display":
@@ -162,7 +161,6 @@ class DynamicPlot(QtWidgets.QWidget):
             if sensor in self.curves:
                 curve = self.curves.pop(sensor)
                 self.plot.removeItem(curve)
-            self.update_legend()
 
             # Remove display widgets.
             if sensor in self.tx_widgets:
@@ -173,16 +171,33 @@ class DynamicPlot(QtWidgets.QWidget):
                 widget.deleteLater()
 
     def update_legend(self):
-        """Updates the legend based on the current sensor streams."""
+        """Updates the legend based on the current sensor streams.
+           In regular plot mode, each label also shows the current datarate (1s average).
+        """
         # Recreate the legend if it does not exist.
         if not hasattr(self, "legend") or self.legend is None:
             self.legend = self.plot.addLegend(offset=(10, 10))
             self.legend.anchor = (0, 0)
         self.legend.clear()
-        for sensor in self.sensor_keys_assigned:
-            if sensor in self.curves:
-                self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
-    
+        
+        # Only in regular plot mode do we show the datarate.
+        if self.mode == "plot":
+            current_time = time.time() - start_time
+            for sensor in self.sensor_keys_assigned:
+                if sensor in self.curves:
+                    # Compute the number of entries in the last 1 second.
+                    if sensor in data_history:
+                        count = sum(1 for entry in data_history[sensor] if entry[1] >= current_time - 1)
+                    else:
+                        count = 0
+                    label = f"{get_sensor_name(sensor)} ({count} Hz)"
+                    self.legend.addItem(self.curves[sensor], label)
+        else:
+            # In other modes, just show the sensor name.
+            for sensor in self.sensor_keys_assigned:
+                if sensor in self.curves:
+                    self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
+
     def get_color(self, sensor):
         """Return a color for the sensor. If not assigned, generate and store a new color."""
         if sensor in self.sensor_colors:
@@ -216,6 +231,8 @@ class DynamicPlot(QtWidgets.QWidget):
         elif self.mode == "display":
             self.update_display_widgets(data_history)
         else:
+            self.update_legend()
+
             # Regular time-series plot mode.
             current_time = time.time() - start_time
             for sensor in self.sensor_keys_assigned:

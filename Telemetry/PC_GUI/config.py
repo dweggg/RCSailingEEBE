@@ -12,4 +12,4 @@ if sys.platform.startswith('linux'):
 # --- Configuration ---
 BAUD_RATE = 115200
 UPDATE_INTERVAL_MS = 5      # Update interval in milliseconds
-MAX_POINTS = 10000             # Maximum data points to store per channel
+MAX_POINTS = 1000             # Maximum data points to store per channel

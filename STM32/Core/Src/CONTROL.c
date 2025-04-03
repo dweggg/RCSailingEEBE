@@ -121,7 +121,9 @@ void control(void) {
 
     /* Update control mode from telemetry queue (non-blocking) */
     if (osMessageQueueGet(telemetryQueueHandle, &newTelemetryData, NULL, 0) == osOK) {
-        currentMode = newTelemetryData.mode;
+        if (newTelemetryData.mode >= MODE_CALIBRATION && newTelemetryData.mode <= MODE_AUTO_4) {
+                currentMode = newTelemetryData.mode;
+            }
     }
 
     /* Update IMU data (non-blocking) */

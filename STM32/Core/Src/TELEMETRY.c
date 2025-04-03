@@ -31,7 +31,6 @@ static char uartRxBuffer[RX_BUFFER_SIZE] = {0};
 
 #define TX_BUFFER_SIZE 16
 static char uartTxBuffer[TX_BUFFER_SIZE];  // TX buffer (larger size for safety)
-
 /**
  * @brief Transmits a telemetry value with a given key.
  *
@@ -39,7 +38,7 @@ static char uartTxBuffer[TX_BUFFER_SIZE];  // TX buffer (larger size for safety)
  */
 static void telemetry_transmit(const char *key, float value) {
     snprintf(uartTxBuffer, sizeof(uartTxBuffer), "%s:%.2f\r\n", key, value);
-    HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), 1);
+    HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), 10);
 }
 
 /**
@@ -110,6 +109,10 @@ bool telemetry_receive(const char *key, float *value) {
 
 int telemetry_initialized = 0;
 
+
+#define STATS_BUFFER_SIZE 512
+static char statsBuffer[STATS_BUFFER_SIZE];
+
 void telemetry(void) {
     if (!telemetry_initialized) {
 
@@ -169,6 +172,37 @@ void telemetry(void) {
 	    //telemetry_transmit("CEX", controlDataReceived.extra);
 	}
 
+
+	static int counter = 0;
+	counter++;
+    if(counter == 5){
+        counter = 0;
+        // Calculate and transmit CPU usage
+        vTaskGetRunTimeStats(statsBuffer);
+
+        // Parse statsBuffer to find the Idle task's execution time
+        char *idleTaskEntry = strstr(statsBuffer, "IDLE");
+        if (idleTaskEntry != NULL) {
+            unsigned long idleTime = 0;
+            sscanf(idleTaskEntry, "IDLE %lu", &idleTime);
+
+            // Calculate total run time by summing all task times
+            unsigned long totalTime = 0;
+            char *line = strtok(statsBuffer, "\n");
+            while (line != NULL) {
+                unsigned long taskTime = 0;
+                sscanf(line, "%*s %lu", &taskTime);
+                totalTime += taskTime;
+                line = strtok(NULL, "\n");
+            }
+
+            if (totalTime > 0) {
+                float idlePercentage = (idleTime * 100.0f) / totalTime;
+                float cpuUsage = 100.0f - idlePercentage;
+                telemetry_transmit("CPU", cpuUsage);
+            }
+        }
+    }
     float modeValue = 0.0f;
     if (telemetry_receive("MOD", &modeValue)) {
         // Create a TelemetryData_t structure and assign the received value.

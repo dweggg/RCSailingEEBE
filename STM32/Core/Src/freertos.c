@@ -45,12 +45,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define CONTROL_DELAY 10
-#define TELEMETRY_DELAY 10
-#define IMU_DELAY 10
-#define ADC_DELAY 10
-
-#define INCLUDE_vTaskList               1
+#define INCLUDE_vTaskList       1
 
 /* USER CODE END PD */
 
@@ -75,28 +70,28 @@ osThreadId_t control_taskHandle;
 const osThreadAttr_t control_task_attributes = {
   .name = "control_task",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for imu_read_task */
 osThreadId_t imu_read_taskHandle;
 const osThreadAttr_t imu_read_task_attributes = {
   .name = "imu_read_task",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal1,
 };
 /* Definitions for adc_read_task */
 osThreadId_t adc_read_taskHandle;
 const osThreadAttr_t adc_read_task_attributes = {
   .name = "adc_read_task",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for telemetry_task */
 osThreadId_t telemetry_taskHandle;
 const osThreadAttr_t telemetry_task_attributes = {
   .name = "telemetry_task",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for radioQueue */
 osMessageQueueId_t radioQueueHandle;
@@ -206,19 +201,19 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of radioQueue */
-  radioQueueHandle = osMessageQueueNew (1, sizeof(RadioData_t), &radioQueue_attributes);
+  radioQueueHandle = osMessageQueueNew (10, sizeof(RadioData_t), &radioQueue_attributes);
 
   /* creation of adcQueue */
-  adcQueueHandle = osMessageQueueNew (1, sizeof(AdcData_t), &adcQueue_attributes);
+  adcQueueHandle = osMessageQueueNew (10, sizeof(AdcData_t), &adcQueue_attributes);
 
   /* creation of imuQueue */
-  imuQueueHandle = osMessageQueueNew (1, sizeof(ImuData_t), &imuQueue_attributes);
+  imuQueueHandle = osMessageQueueNew (10, sizeof(ImuData_t), &imuQueue_attributes);
 
   /* creation of controlQueue */
-  controlQueueHandle = osMessageQueueNew (1, sizeof(ControlData_t), &controlQueue_attributes);
+  controlQueueHandle = osMessageQueueNew (10, sizeof(ControlData_t), &controlQueue_attributes);
 
   /* creation of telemetryQueue */
-  telemetryQueueHandle = osMessageQueueNew (1, sizeof(TelemetryData_t), &telemetryQueue_attributes);
+  telemetryQueueHandle = osMessageQueueNew (10, sizeof(TelemetryData_t), &telemetryQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -277,6 +272,8 @@ void StartDefaultTask(void *argument)
 }
 
 /* USER CODE BEGIN Header__control_task */
+int TASK_DELAY = 20;
+
 /**
 * @brief Function implementing the control_task thread.
 * @param argument: Not used
@@ -290,7 +287,7 @@ void _control_task(void *argument)
   {
     control_dummy++;
     control(); // Execute control function
-    osDelay(CONTROL_DELAY);
+    osDelay(TASK_DELAY);
   }
   /* USER CODE END _control_task */
 }
@@ -309,7 +306,7 @@ void _imu_read_task(void *argument)
   {
     imu_dummy++;
     imu_read(); // Execute imu read function
-    osDelay(IMU_DELAY);
+    osDelay(TASK_DELAY);
   }
   /* USER CODE END _imu_read_task */
 }
@@ -328,7 +325,7 @@ void _adc_read_task(void *argument)
   {
     adc_dummy++;
     adc_read(); // Execute ADC read function
-    osDelay(ADC_DELAY);
+    osDelay(TASK_DELAY);
   }
   /* USER CODE END _adc_read_task */
 }
@@ -347,7 +344,7 @@ void _telemetry_task(void *argument)
   {
     telemetry_dummy++;
     telemetry(); // Execute telemetry function
-    osDelay(TELEMETRY_DELAY);
+    osDelay(TASK_DELAY);
   }
   /* USER CODE END _telemetry_task */
 }
