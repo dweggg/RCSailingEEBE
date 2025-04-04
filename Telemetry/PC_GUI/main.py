@@ -6,7 +6,7 @@ import pyqtgraph as pg
 from PyQt6 import QtWidgets, QtCore, QtGui
 import serial
 
-from config import BAUD_RATE, UPDATE_INTERVAL_MS, MAX_POINTS
+from config import BAUD_RATE, UPDATE_INTERVAL_MS, PLOT_UPDATE_INTERVAL_MS, MAX_POINTS
 from variables import SENSOR_KEYS
 from data import data_history, start_time
 from plot import DynamicPlot
@@ -153,10 +153,9 @@ main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRigh
 # --- Serial Port Setup ---
 #ser = open_serial_port(select_serial_port())
 
-# --- Update Function ---
 
 def update():
-    """Fetch serial data, update plots, rotate the 3D model (if visible) and update indicators."""
+    """Fetch serial data, update model and indicators (everything except plots)."""
     global last_ok_time, ser
 
     if not freeze_plots and ser is not None:
@@ -180,8 +179,6 @@ def update():
                     if len(data_history[key]) > MAX_POINTS:
                         data_history[key] = data_history[key][-MAX_POINTS:]
         except (OSError, serial.SerialException) as e:
-            # Instead of spamming a message box on each update, log the error, close the port,
-            # and let the user reselect a port.
             print(f"Error reading from serial port: {e}")
             QtWidgets.QMessageBox.critical(main_window, "Serial Port Error",
                                            f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
@@ -191,9 +188,6 @@ def update():
                 pass
             ser = None
 
-        for plot in tiling_area.plots.keys():
-            plot.update_plot(data_history)
-    
         if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
             roll = data_history['ROL'][-1][0]
             pitch = data_history['PIT'][-1][0]
@@ -203,24 +197,35 @@ def update():
             model_item.rotate(yaw, 0, 0, 1)
             model_item.rotate(pitch, 0, 1, 0)
             model_item.rotate(roll, 1, 0, 0)
-    
+
         log_data(data_history)
 
-    # Update the OK indicator based on whether we have a connection.
     if ser is None or time.time() - last_ok_time > 1:
         ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
     else:
         ok_indicator.setStyleSheet("background-color: green; border-radius: 10px;")
-    
+
     if freeze_plots:
         freeze_indicator.setStyleSheet("background-color: blue; border-radius: 10px;")
     else:
         freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
-        
-# --- Timer for Updates ---
-timer = QtCore.QTimer()
-timer.timeout.connect(update)
-timer.start(UPDATE_INTERVAL_MS)
+
+# --- Plot Update Function ---
+
+def update_plots():
+    if not freeze_plots:
+        for plot in tiling_area.plots.keys():
+            plot.update_plot(data_history)
+
+# --- Timers ---
+
+main_timer = QtCore.QTimer()
+main_timer.timeout.connect(update)
+main_timer.start(UPDATE_INTERVAL_MS)
+
+plot_timer = QtCore.QTimer()
+plot_timer.timeout.connect(update_plots)
+plot_timer.start(PLOT_UPDATE_INTERVAL_MS)
 
 def add_variable_to_selected(item):
     sensor = item.data(QtCore.Qt.ItemDataRole.UserRole)

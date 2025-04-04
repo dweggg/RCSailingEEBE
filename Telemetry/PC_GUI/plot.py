@@ -6,6 +6,7 @@ from focus import FocusManager  # Expects a FocusManager class
 from uart import send_sensor
 from data import data_history, start_time
 import time
+import bisect
 
 class DynamicPlot(QtWidgets.QWidget):
     selected_signal = QtCore.pyqtSignal(object)
@@ -171,29 +172,42 @@ class DynamicPlot(QtWidgets.QWidget):
                 widget.deleteLater()
 
     def update_legend(self):
-        """Updates the legend based on the current sensor streams.
-           In regular plot mode, each label also shows the current datarate (1s average).
+        """Updates the legend based on the current sensor streams,
+           but only updates once per second.
         """
-        # Recreate the legend if it does not exist.
+        current_time = time.time() - start_time
+        # Initialize the last update time if it doesn't exist.
+        if not hasattr(self, "last_legend_update"):
+            self.last_legend_update = 0
+
+        # Only update the legend if 1 second has passed.
+        if current_time - self.last_legend_update < 1.0:
+            return
+
+        self.last_legend_update = current_time
+
+        # Create the legend once if necessary.
         if not hasattr(self, "legend") or self.legend is None:
             self.legend = self.plot.addLegend(offset=(10, 10))
             self.legend.anchor = (0, 0)
         self.legend.clear()
-        
-        # Only in regular plot mode do we show the datarate.
+
+        # In 'plot' mode, show the sensor name with the 1s datarate.
         if self.mode == "plot":
-            current_time = time.time() - start_time
             for sensor in self.sensor_keys_assigned:
                 if sensor in self.curves:
-                    # Compute the number of entries in the last 1 second.
-                    if sensor in data_history:
-                        count = sum(1 for entry in data_history[sensor] if entry[1] >= current_time - 1)
-                    else:
-                        count = 0
+                    sensor_data = data_history.get(sensor, [])
+                    count = 0
+                    # Iterate backward; stop once data is older than 1 second.
+                    for _, t in reversed(sensor_data):
+                        if t >= current_time - 1:
+                            count += 1
+                        else:
+                            break
                     label = f"{get_sensor_name(sensor)} ({count} Hz)"
                     self.legend.addItem(self.curves[sensor], label)
         else:
-            # In other modes, just show the sensor name.
+            # In other modes, simply display the sensor name.
             for sensor in self.sensor_keys_assigned:
                 if sensor in self.curves:
                     self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
@@ -223,36 +237,48 @@ class DynamicPlot(QtWidgets.QWidget):
             new_color = hsv_color.getRgb()[:3]
         self.sensor_colors[sensor] = new_color
         return new_color
-        
+            
     def update_plot(self, data_history=data_history):
         """Updates the plot based on the current mode."""
         if self.mode == "xy":
             self.update_xy_plot()
+            return
         elif self.mode == "display":
             self.update_display_widgets(data_history)
-        else:
-            self.update_legend()
+            return
 
-            # Regular time-series plot mode.
-            current_time = time.time() - start_time
-            for sensor in self.sensor_keys_assigned:
-                if sensor in data_history and len(data_history[sensor]) > 0:
-                    last_value = data_history[sensor][-1][0]
-                    last_timestamp = data_history[sensor][-1][1]
-                    if current_time - last_timestamp >= 0.5:  # 500ms interval.
-                        data_history[sensor].append((last_value, current_time))
-                    times = [entry[1] for entry in data_history[sensor]]
-                    values = [entry[0] for entry in data_history[sensor]]
-                    self.curves[sensor].setData(times, values)
-            try:
-                time_window = float(self.time_window_edit.text())
-            except ValueError:
-                time_window = 0
-            if time_window > 0:
-                self.plot.setXRange(max(0, current_time - time_window), current_time)
-            else:
-                self.plot.enableAutoRange(axis='x')
-                
+        # For regular time-series mode.
+        self.update_legend()
+        current_time = time.time() - start_time
+
+        for sensor in self.sensor_keys_assigned:
+            sensor_data = data_history.get(sensor)
+            if sensor_data:
+                # Append a new entry if the last update is older than 500ms.
+                last_value, last_timestamp = sensor_data[-1]
+                if current_time - last_timestamp >= 0.5:
+                    sensor_data.append((last_value, current_time))
+
+                # Instead of two list comprehensions, unpack once.
+                try:
+                    # sensor_data contains (value, timestamp) pairs.
+                    vals, ts = zip(*sensor_data)
+                except ValueError:
+                    # sensor_data is empty; skip updating.
+                    continue
+                # Set data with times on the x-axis and sensor values on the y-axis.
+                self.curves[sensor].setData(list(ts), list(vals))
+
+        try:
+            time_window = float(self.time_window_edit.text())
+        except ValueError:
+            time_window = 0
+
+        if time_window > 0:
+            self.plot.setXRange(max(0, current_time - time_window), current_time)
+        else:
+            self.plot.enableAutoRange(axis='x')
+
     def update_xy_plot(self):
         """Updates the XY plot using the first sensor as x-axis and the second as y-axis."""
         if len(self.sensor_keys_assigned) < 2:
