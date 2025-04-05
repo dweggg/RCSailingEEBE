@@ -1300,9 +1300,9 @@ error_bno bno055_on(bno055_t* imu) {
 error_bno bno055_read_regs(bno055_t imu, u8 addr, uint8_t* buf,
                            uint32_t buf_size) {
     HAL_StatusTypeDef err;
-    // err = HAL_I2C_Mem_Read(imu.i2c, imu.addr, addr, I2C_MEMADD_SIZE_8BIT,
-    // buf,
-    //                        buf_size, HAL_MAX_DELAY);
+     err = HAL_I2C_Mem_Read(imu.i2c, imu.addr, addr, I2C_MEMADD_SIZE_8BIT,
+     buf,
+                            buf_size, HAL_MAX_DELAY);
     err = HAL_I2C_Master_Transmit(imu.i2c, imu.addr, &addr, 1, HAL_MAX_DELAY);
     if (err != HAL_OK) {
         return BNO_ERR_I2C;

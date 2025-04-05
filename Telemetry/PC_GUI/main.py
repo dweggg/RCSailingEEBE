@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+from config import BAUD_RATE, UPDATE_INTERVAL_MS, PLOT_UPDATE_INTERVAL_MS, MAX_POINTS
+
 import sys
 import time
 import numpy as np
 import pyqtgraph as pg
 from PyQt6 import QtWidgets, QtCore, QtGui
 import serial
+import threading
 
-from config import BAUD_RATE, UPDATE_INTERVAL_MS, PLOT_UPDATE_INTERVAL_MS, MAX_POINTS
 from variables import SENSOR_KEYS
 from data import data_history, start_time
 from plot import DynamicPlot
@@ -150,56 +152,69 @@ corner_layout.addWidget(freeze_indicator)
 corner_layout.addWidget(ok_indicator)
 main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
 
-# --- Serial Port Setup ---
-#ser = open_serial_port(select_serial_port())
+class SerialReader:
+    def __init__(self):
+        self._running = True
 
+    def read_serial(self):
+        global ser, last_ok_time
+        while self._running:
+            if ser is not None:
+                try:
+                    if ser.in_waiting:
+                        raw_bytes = ser.read(ser.in_waiting)
+                        raw_lines = raw_bytes.decode('utf-8', errors='ignore').splitlines()
+                        for line in raw_lines:
+                            line = line.strip()
+                            if line == "OK":
+                                last_ok_time = time.time()
+                            if not line or ':' not in line:
+                                continue
+                            key, value_str = line.split(':', 1)
+                            try:
+                                value = float(value_str)
+                            except ValueError:
+                                continue
+                            if key in data_history:
+                                data_history[key].append((value, time.time() - start_time))
+                                if len(data_history[key]) > MAX_POINTS:
+                                    data_history[key] = data_history[key][-MAX_POINTS:]
+                except (OSError, serial.SerialException) as e:
+                    print(f"Error reading from serial port: {e}")
+                    QtWidgets.QMessageBox.critical(main_window, "Serial Port Error",
+                                                   f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
+                    try:
+                        ser.close()
+                    except Exception:
+                        pass
+                    ser = None
+            time.sleep(0.005)  # short sleep to avoid busy waiting
+
+    def stop(self):
+        self._running = False
+
+# Start the serial reader thread
+serial_reader = SerialReader()
+serial_thread = threading.Thread(target=serial_reader.read_serial, daemon=True)
+serial_thread.start()
 
 def update():
-    """Fetch serial data, update model and indicators (everything except plots)."""
-    global last_ok_time, ser
+    """Update model view, log data and refresh indicators (non-blocking)."""
+    # If the 3D model view is visible and the required sensor data is available, update it.
+    if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
+        roll = data_history['ROL'][-1][0]
+        pitch = data_history['PIT'][-1][0]
+        yaw = data_history['YAW'][-1][0]
+        model_item.resetTransform()
+        model_item.translate(0, 0, 0)
+        model_item.rotate(yaw, 0, 0, 1)
+        model_item.rotate(pitch, 0, 1, 0)
+        model_item.rotate(roll, 1, 0, 0)
 
-    if not freeze_plots and ser is not None:
-        try:
-            while ser.in_waiting:
-                try:
-                    line = ser.readline().decode('utf-8').strip()
-                except UnicodeDecodeError:
-                    continue
-                if line == "OK":
-                    last_ok_time = time.time()
-                if not line or ':' not in line:
-                    continue
-                key, value_str = line.split(':', 1)
-                try:
-                    value = float(value_str)
-                except ValueError:
-                    continue
-                if key in data_history:
-                    data_history[key].append((value, time.time() - start_time))
-                    if len(data_history[key]) > MAX_POINTS:
-                        data_history[key] = data_history[key][-MAX_POINTS:]
-        except (OSError, serial.SerialException) as e:
-            print(f"Error reading from serial port: {e}")
-            QtWidgets.QMessageBox.critical(main_window, "Serial Port Error",
-                                           f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
-            try:
-                ser.close()
-            except Exception:
-                pass
-            ser = None
+    # Log data (every new data point has been appended by the serial thread).
+    log_data(data_history)
 
-        if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
-            roll = data_history['ROL'][-1][0]
-            pitch = data_history['PIT'][-1][0]
-            yaw = data_history['YAW'][-1][0]
-            model_item.resetTransform()
-            model_item.translate(0, 0, 0)
-            model_item.rotate(yaw, 0, 0, 1)
-            model_item.rotate(pitch, 0, 1, 0)
-            model_item.rotate(roll, 1, 0, 0)
-
-        log_data(data_history)
-
+    # Update indicators
     if ser is None or time.time() - last_ok_time > 1:
         ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
     else:

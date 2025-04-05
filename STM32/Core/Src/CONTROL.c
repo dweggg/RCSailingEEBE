@@ -16,6 +16,7 @@
 #include "TELEMETRY.h"
 #include "IMU.h"
 #include "cmsis_os.h"
+#include <math.h>
 
 // External queue handles (set up in your RTOS initialization code).
 extern osMessageQueueId_t radioQueueHandle;
@@ -41,20 +42,39 @@ static ControlData_t direct_input_control(void) {
 // --- AUTO CONTROL MODE 1 ---
 // Example auto-control: rudder is computed from an average of two channels,
 // twist is calculated using a simple PI controller, and trim is taken from one channel.
-static float Kp = 1.0F, Ki = 0.1F, Kaw = 0.1F, Ts = 0.01F;
+
+static float Kp = 1.0F, Ki = 0.1F;
 static float integrator_state = 0.0F;
+static uint32_t previous_tick = 0;  // store the tick count from the previous call
 
 static float roll_controller(float current_roll) {
     const float desired_roll = 0.0F;
-    float error = desired_roll - current_roll;
+
+    // Get the current tick count (assuming ticks are in milliseconds)
+    uint32_t current_tick = osKernelGetTickCount();
+
+    // Calculate elapsed time (Ts) in seconds.
+    // If this is the first call, you can either initialize Ts to a default value
+    // or simply skip integration for this cycle.
+    float Ts = (previous_tick == 0) ? 0.01F : ((current_tick - previous_tick) / 1000.0F);
+    previous_tick = current_tick;
+
+    // Compute error and the preliminary (unsaturated) twist value.
+    float error = current_roll - desired_roll;
     float unsaturated = Kp * error + integrator_state;
     float twist = unsaturated;
+
+    // Saturate the twist command.
     if (twist > TWIST_MAX_ANGLE) {
         twist = TWIST_MAX_ANGLE;
     } else if (twist < TWIST_MIN_ANGLE) {
         twist = TWIST_MIN_ANGLE;
     }
-    integrator_state += Ki * Ts * (error + (twist - unsaturated) * Kaw);
+
+    // Update the integrator state using the dynamic Ts.
+    integrator_state += Ki * Ts * (error + (twist - unsaturated)/(Kp));
+    if (current_roll < 5.0F) {integrator_state = 0.0F;}
+
     return twist;
 }
 
@@ -65,7 +85,7 @@ static ControlData_t auto_control_mode1(void) {
     control.rudder = map_radio(get_radio_ch2(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
 
     // Twist servo is automatically controller depending on the roll.
-    control.twist = roll_controller(imu.roll);
+    control.twist = roll_controller(fabs(imu.roll));
 
     // Trim servo is controlled directly with radio channel 1.
     control.trim = map_radio(get_radio_ch1(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
@@ -124,6 +144,9 @@ void control(void) {
         if (newTelemetryData.mode >= MODE_CALIBRATION && newTelemetryData.mode <= MODE_AUTO_4) {
                 currentMode = newTelemetryData.mode;
             }
+        if (newTelemetryData.mode == MODE_RESET){
+        	NVIC_SystemReset();
+        }
     }
 
     /* Update IMU data (non-blocking) */
@@ -140,8 +163,9 @@ void control(void) {
     // Dispatch control based on current mode.
     if (currentMode == MODE_DIRECT_INPUT) {
         controlData = direct_input_control();
-    } else if (currentMode == MODE_AUTO_1 || currentMode == MODE_AUTO_2 ||
-               currentMode == MODE_AUTO_3 || currentMode == MODE_AUTO_4) {
+    } else if ((currentMode == MODE_AUTO_1 || currentMode == MODE_AUTO_2 ||
+               currentMode == MODE_AUTO_3 || currentMode == MODE_AUTO_4) &&
+			   is_imu_initialized()) {
         controlData = auto_control(currentMode);
     } else {
         // Calibration or unknown mode: no control command issued.
@@ -161,4 +185,8 @@ void control(void) {
     // osMessageQueuePut(controlQueueHandle, &controlData, 0, 0);
 
     // Delay to control the task’s update rate (e.g., 10 ms).
+}
+
+float low_pass_filter(float input, float prev_output, float alpha) {
+    return alpha * input + (1 - alpha) * prev_output;
 }

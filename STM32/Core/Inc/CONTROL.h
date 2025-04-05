@@ -14,6 +14,7 @@
 
 // Enumeration of the control modes.
 typedef enum {
+    MODE_RESET  	  = -79, // wooo reset
     MODE_CALIBRATION  = -1,  // Calibration mode
     MODE_DIRECT_INPUT =  0,  // Direct input mode
     MODE_AUTO_1       =  1,  // Automatic control mode 1
@@ -32,5 +33,8 @@ typedef struct {
 
 // The main control task, which is run by the RTOS.
 void control(void);
+
+// Low-Pass Filter function
+float low_pass_filter(float input, float prev_output, float alpha);
 
 #endif /* CONTROL_H_ */

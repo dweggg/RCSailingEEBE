@@ -34,4 +34,6 @@ void imu_read(void);
 
 int is_imu_initialized(void);
 
+void calibrate_imu(void);
+
 #endif /* INC_IMU_H_ */

@@ -20,14 +20,14 @@
 #define RUDDER_MIN_ANGLE    -35.0F
 #define RUDDER_MAX_ANGLE    35.0F
 
-#define TRIM_MIN_ANGLE      10.0F
-#define TRIM_MAX_ANGLE      170.0F
+#define TRIM_MIN_ANGLE      -180.0F
+#define TRIM_MAX_ANGLE      180.0F
 
-#define TWIST_MIN_ANGLE     10.0F
-#define TWIST_MAX_ANGLE     170.0F
+#define TWIST_MIN_ANGLE     0.0F
+#define TWIST_MAX_ANGLE     45.0F
 
-#define EXTRA_MIN_ANGLE     10.0F
-#define EXTRA_MAX_ANGLE     170.0F
+#define EXTRA_MIN_ANGLE     0.0F
+#define EXTRA_MAX_ANGLE     180.0F
 
 // Servo conversion limits (defines how the mechanical angle maps to servo angle).
 #define RUDDER_SERVO_MIN_ANGLE    10.0F

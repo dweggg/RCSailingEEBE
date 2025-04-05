@@ -14,12 +14,14 @@
 #include <stdlib.h>
 #include "usart.h"
 
+// Queue externs
 extern osMessageQueueId_t adcQueueHandle;
 extern osMessageQueueId_t imuQueueHandle;
 extern osMessageQueueId_t radioQueueHandle;
 extern osMessageQueueId_t controlQueueHandle;
 extern osMessageQueueId_t telemetryQueueHandle;
 
+// Data structures for incoming messages
 AdcData_t    adcDataReceived;
 ImuData_t    imuDataReceived;
 RadioData_t  radioDataReceived;
@@ -31,6 +33,15 @@ static char uartRxBuffer[RX_BUFFER_SIZE] = {0};
 
 #define TX_BUFFER_SIZE 16
 static char uartTxBuffer[TX_BUFFER_SIZE];  // TX buffer (larger size for safety)
+
+// Define prescaler values for each telemetry group.
+// Adjust these values as needed.
+#define ADC_PRESCALER      5
+#define IMU_PRESCALER      1
+#define RADIO_PRESCALER    2
+#define CONTROL_PRESCALER  2
+#define CPU_PRESCALER      5
+
 /**
  * @brief Transmits a telemetry value with a given key.
  *
@@ -51,28 +62,23 @@ static void telemetry_start_rx_dma(void) {
     HAL_UART_Receive_DMA(&huart1, (uint8_t *)uartRxBuffer, RX_BUFFER_SIZE);
 }
 
-// Define a sufficiently large temporary buffer for complete messages.
+// Temporary buffer for complete messages
 #define TEMP_BUFFER_SIZE 64
 
 bool telemetry_receive(const char *key, float *value) {
-    // Static variables to keep state across function calls
     static uint16_t last_read_index = 0;
     static char tempBuffer[TEMP_BUFFER_SIZE];
     static uint16_t tempIndex = 0;
 
-    // Determine the current index in the DMA circular buffer.
-    // RX_BUFFER_SIZE is defined in the file as 16.
-    // __HAL_DMA_GET_COUNTER returns the number of bytes remaining.
+    // Get current DMA index (number of bytes that have been transferred)
     uint16_t dma_remaining = __HAL_DMA_GET_COUNTER(huart1.hdmarx);
     uint16_t current_index = RX_BUFFER_SIZE - dma_remaining;
 
-    // Process all new characters in the circular buffer
+    // Process new characters in the circular buffer
     while (last_read_index != current_index) {
         char ch = uartRxBuffer[last_read_index];
-        // Update the read pointer, wrapping around if necessary.
         last_read_index = (last_read_index + 1) % RX_BUFFER_SIZE;
 
-        // Append the character to the temporary buffer if space is available.
         if (tempIndex < TEMP_BUFFER_SIZE - 1) {
             tempBuffer[tempIndex++] = ch;
         } else {
@@ -80,7 +86,7 @@ bool telemetry_receive(const char *key, float *value) {
             tempIndex = 0;
         }
 
-        // Check if the last two characters form the "\r\n" delimiter.
+        // Check for "\r\n" delimiter signaling end of message.
         if (tempIndex >= 2 &&
             tempBuffer[tempIndex - 2] == '\r' &&
             tempBuffer[tempIndex - 1] == '\n') {
@@ -88,105 +94,116 @@ bool telemetry_receive(const char *key, float *value) {
             // Null-terminate the message (overwrite '\r' with '\0').
             tempBuffer[tempIndex - 2] = '\0';
 
-            // Check if the message starts with the given key followed by a colon.
             size_t keyLen = strlen(key);
             if (strncmp(tempBuffer, key, keyLen) == 0 && tempBuffer[keyLen] == ':') {
-                // Convert the string after the colon to a float.
                 *value = (float)atof(&tempBuffer[keyLen + 1]);
-                // Reset the temporary buffer for the next message.
                 tempIndex = 0;
                 return true;
             }
-            // Message was complete but did not match the key.
-            // Clear the temp buffer and continue processing.
+            // Clear the buffer if the key did not match.
             tempIndex = 0;
         }
     }
-
-    // No complete message with the requested key was received.
     return false;
 }
 
 int telemetry_initialized = 0;
 
-
 #define STATS_BUFFER_SIZE 512
 static char statsBuffer[STATS_BUFFER_SIZE];
 
 void telemetry(void) {
+    // Initialize DMA only once.
     if (!telemetry_initialized) {
-
-    	// Start RX DMA (assumes this only needs to be done once)
-    	telemetry_start_rx_dma();
-    	telemetry_initialized = 1;
+        telemetry_start_rx_dma();
+        telemetry_initialized = 1;
     }
 
-	// Send a simple "OK" heartbeat
-	snprintf(uartTxBuffer, sizeof(uartTxBuffer), "OK\r\n");
-	HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
+    // Transmit heartbeat.
+    snprintf(uartTxBuffer, sizeof(uartTxBuffer), "OK\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
 
-	// Transmit ADC data if available.
-	if (osMessageQueueGetCount(adcQueueHandle) > 0) {
-		osMessageQueueGet(adcQueueHandle, (void *)&adcDataReceived, NULL, osWaitForever);
-		telemetry_transmit("DIR", adcDataReceived.windDirection);
-		telemetry_transmit("BAT", adcDataReceived.batteryVoltage);
-		telemetry_transmit("EX1", adcDataReceived.extra1);
-		telemetry_transmit("EX2", adcDataReceived.extra2);
-	}
+    // Static prescaler counters for each telemetry group.
+    static int adc_count = 0;
+    static int imu_count = 0;
+    static int radio_count = 0;
+    static int control_count = 0;
+    static int cpu_count = 0;
 
-	// Transmit IMU data if available and initialized.
-	if (osMessageQueueGetCount(imuQueueHandle) > 0 && is_imu_initialized()) {
-		osMessageQueueGet(imuQueueHandle, (void *)&imuDataReceived, NULL, osWaitForever);
-		telemetry_transmit("ROL", imuDataReceived.roll);
-		telemetry_transmit("PIT", imuDataReceived.pitch);
-		telemetry_transmit("YAW", imuDataReceived.yaw);
-		telemetry_transmit("ACX", imuDataReceived.accelX);
-		telemetry_transmit("ACY", imuDataReceived.accelY);
-		telemetry_transmit("ACZ", imuDataReceived.accelZ);
-		telemetry_transmit("GYX", imuDataReceived.gyroX);
-		telemetry_transmit("GYY", imuDataReceived.gyroY);
-		telemetry_transmit("GYZ", imuDataReceived.gyroZ);
-		telemetry_transmit("MGX", imuDataReceived.magX);
-		telemetry_transmit("MGY", imuDataReceived.magY);
-		telemetry_transmit("MGZ", imuDataReceived.magZ);
-		telemetry_transmit("SPE", imuDataReceived.speed);
-	}
+    // ADC telemetry group
+    adc_count++;
+    if (adc_count >= ADC_PRESCALER) {
+        adc_count = 0;
+        if (osMessageQueueGetCount(adcQueueHandle) > 0) {
+            osMessageQueueGet(adcQueueHandle, (void *)&adcDataReceived, NULL, osWaitForever);
+            telemetry_transmit("DIR", adcDataReceived.windDirection);
+            telemetry_transmit("BAT", adcDataReceived.batteryVoltage);
+            telemetry_transmit("EX1", adcDataReceived.extra1);
+            telemetry_transmit("EX2", adcDataReceived.extra2);
+        }
+    }
 
-	// Transmit Radio data if available.
-	if (osMessageQueueGetCount(radioQueueHandle) > 0) {
-		osMessageQueueGet(radioQueueHandle, (void *)&radioDataReceived, NULL, osWaitForever);
-		telemetry_transmit("RW1", (float)radioDataReceived.ch1);
-		telemetry_transmit("RW2", (float)radioDataReceived.ch2);
-		telemetry_transmit("RW3", (float)radioDataReceived.ch3);
-		telemetry_transmit("RW4", (float)radioDataReceived.ch4);
-	}
+    // IMU telemetry group (check initialization first)
+    imu_count++;
+    if (imu_count >= IMU_PRESCALER) {
+        imu_count = 0;
+        if (osMessageQueueGetCount(imuQueueHandle) > 0) {
+            osMessageQueueGet(imuQueueHandle, (void *)&imuDataReceived, NULL, osWaitForever);
+            telemetry_transmit("ROL", imuDataReceived.roll);
+            telemetry_transmit("PIT", imuDataReceived.pitch);
+            telemetry_transmit("YAW", imuDataReceived.yaw);
+            telemetry_transmit("ACX", imuDataReceived.accelX);
+            telemetry_transmit("ACY", imuDataReceived.accelY);
+            telemetry_transmit("ACZ", imuDataReceived.accelZ);
+//            telemetry_transmit("GYX", imuDataReceived.gyroX);
+//            telemetry_transmit("GYY", imuDataReceived.gyroY);
+//            telemetry_transmit("GYZ", imuDataReceived.gyroZ);
+//            telemetry_transmit("MGX", imuDataReceived.magX);
+//            telemetry_transmit("MGY", imuDataReceived.magY);
+//            telemetry_transmit("MGZ", imuDataReceived.magZ);
+            telemetry_transmit("SPE", imuDataReceived.speed);
+        }
+    }
 
-	// Transmit Control data if available.
-	if (osMessageQueueGetCount(controlQueueHandle) > 0) {
-	    ControlData_t controlDataReceived;
-	    osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
+    // Radio telemetry group
+    radio_count++;
+    if (radio_count >= RADIO_PRESCALER) {
+        radio_count = 0;
+        if (osMessageQueueGetCount(radioQueueHandle) > 0) {
+            osMessageQueueGet(radioQueueHandle, (void *)&radioDataReceived, NULL, osWaitForever);
+            telemetry_transmit("RW1", (float)radioDataReceived.ch1);
+            telemetry_transmit("RW2", (float)radioDataReceived.ch2);
+            telemetry_transmit("RW3", (float)radioDataReceived.ch3);
+            telemetry_transmit("RW4", (float)radioDataReceived.ch4);
+        }
+    }
 
-	    telemetry_transmit("RUD", controlDataReceived.rudder);
-	    telemetry_transmit("TWI", controlDataReceived.twist);
-	    telemetry_transmit("TRI",  controlDataReceived.trim);
-	    //telemetry_transmit("CEX", controlDataReceived.extra);
-	}
+    // Control telemetry group
+    control_count++;
+    if (control_count >= CONTROL_PRESCALER) {
+        control_count = 0;
+        if (osMessageQueueGetCount(controlQueueHandle) > 0) {
+            osMessageQueueGet(controlQueueHandle, (void *)&controlDataReceived, NULL, osWaitForever);
+            telemetry_transmit("RUD", controlDataReceived.rudder);
+            telemetry_transmit("TWI", controlDataReceived.twist);
+            telemetry_transmit("TRI", controlDataReceived.trim);
+            // telemetry_transmit("CEX", controlDataReceived.extra);
+        }
+    }
 
-
-	static int counter = 0;
-	counter++;
-    if(counter == 5){
-        counter = 0;
-        // Calculate and transmit CPU usage
+    // CPU usage telemetry group
+    cpu_count++;
+    if (cpu_count >= CPU_PRESCALER) {
+        cpu_count = 0;
         vTaskGetRunTimeStats(statsBuffer);
 
-        // Parse statsBuffer to find the Idle task's execution time
+        // Parse statsBuffer to locate the Idle task's execution time.
         char *idleTaskEntry = strstr(statsBuffer, "IDLE");
         if (idleTaskEntry != NULL) {
             unsigned long idleTime = 0;
             sscanf(idleTaskEntry, "IDLE %lu", &idleTime);
 
-            // Calculate total run time by summing all task times
+            // Calculate total runtime by summing each task's time.
             unsigned long totalTime = 0;
             char *line = strtok(statsBuffer, "\n");
             while (line != NULL) {
@@ -195,7 +212,6 @@ void telemetry(void) {
                 totalTime += taskTime;
                 line = strtok(NULL, "\n");
             }
-
             if (totalTime > 0) {
                 float idlePercentage = (idleTime * 100.0f) / totalTime;
                 float cpuUsage = 100.0f - idlePercentage;
@@ -203,13 +219,12 @@ void telemetry(void) {
             }
         }
     }
+
+    // Process any received mode change.
     float modeValue = 0.0f;
     if (telemetry_receive("MOD", &modeValue)) {
-        // Create a TelemetryData_t structure and assign the received value.
         TelemetryData_t telemetryData;
         telemetryData.mode = (ControlMode_t)(int)modeValue;
-
-        // Send the telemetry data over the telemetry queue.
         osMessageQueuePut(telemetryQueueHandle, (void *)&telemetryData, 0, 0);
     }
 }

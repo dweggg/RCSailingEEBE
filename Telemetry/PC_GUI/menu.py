@@ -8,7 +8,8 @@ def export_layout(main_window, tiling_area):
         main_window,
         "Export Layout",
         "",
-        "JSON Files (*.json)"
+        "JSON Files (*.json)",
+        options=QtWidgets.QFileDialog.Option.DontUseNativeDialog
     )
     if filename:
         try:
@@ -24,7 +25,8 @@ def import_layout(main_window, tiling_area):
         main_window,
         "Import Layout",
         "",
-        "JSON Files (*.json)"
+        "JSON Files (*.json)",
+        options=QtWidgets.QFileDialog.Option.DontUseNativeDialog
     )
     if filename:
         try:
@@ -40,7 +42,6 @@ def setup_menu_bar(main_window, tiling_area):
     Set up the menu bar for main_window with actions:
       - Import Layout
       - Export Layout
-      - Import Variables
     """
     menu_bar = main_window.menuBar()
     
@@ -54,4 +55,3 @@ def setup_menu_bar(main_window, tiling_area):
     export_layout_action = QtGui.QAction("Export Layout", main_window)
     export_layout_action.triggered.connect(lambda: export_layout(main_window, tiling_area))
     layout_menu.addAction(export_layout_action)
-    
