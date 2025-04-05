@@ -1,0 +1,136 @@
+{
+    "rows": [
+        {
+            "plots": [
+                {
+                    "geometry": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 374,
+                        "height": 204
+                    },
+                    "sensor_keys": [
+                        "CPU"
+                    ],
+                    "mode": "plot",
+                    "position": {
+                        "row": 0,
+                        "col": 0
+                    }
+                },
+                {
+                    "geometry": {
+                        "x": 378,
+                        "y": 0,
+                        "width": 463,
+                        "height": 204
+                    },
+                    "sensor_keys": [
+                        "BAT"
+                    ],
+                    "mode": "plot",
+                    "position": {
+                        "row": 0,
+                        "col": 1
+                    }
+                },
+                {
+                    "geometry": {
+                        "x": 845,
+                        "y": 0,
+                        "width": 354,
+                        "height": 204
+                    },
+                    "sensor_keys": [
+                        "MOD",
+                        "BAT",
+                        "CPU",
+                        "SPE"
+                    ],
+                    "mode": "display",
+                    "position": {
+                        "row": 0,
+                        "col": 2
+                    }
+                }
+            ]
+        },
+        {
+            "plots": [
+                {
+                    "geometry": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 405,
+                        "height": 288
+                    },
+                    "sensor_keys": [
+                        "ACX",
+                        "ACY"
+                    ],
+                    "mode": "xy",
+                    "position": {
+                        "row": 1,
+                        "col": 0
+                    }
+                },
+                {
+                    "geometry": {
+                        "x": 409,
+                        "y": 0,
+                        "width": 790,
+                        "height": 288
+                    },
+                    "sensor_keys": [
+                        "ROL",
+                        "PIT",
+                        "YAW"
+                    ],
+                    "mode": "plot",
+                    "position": {
+                        "row": 1,
+                        "col": 1
+                    }
+                }
+            ]
+        },
+        {
+            "plots": [
+                {
+                    "geometry": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 405,
+                        "height": 271
+                    },
+                    "sensor_keys": [
+                        "SPE"
+                    ],
+                    "mode": "plot",
+                    "position": {
+                        "row": 2,
+                        "col": 0
+                    }
+                },
+                {
+                    "geometry": {
+                        "x": 409,
+                        "y": 0,
+                        "width": 790,
+                        "height": 271
+                    },
+                    "sensor_keys": [
+                        "RUD",
+                        "TWI",
+                        "TRI"
+                    ],
+                    "mode": "plot",
+                    "position": {
+                        "row": 2,
+                        "col": 1
+                    }
+                }
+            ]
+        }
+    ]
+}
