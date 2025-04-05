@@ -133,7 +133,7 @@ def update():
     if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
         roll = data_history['ROL'][-1][0]
         pitch = data_history['PIT'][-1][0]
-        yaw = data_history['YAW'][-1][0]
+        yaw = 0#data_history['YAW'][-1][0]
         model_item.resetTransform()
         model_item.translate(0, 0, 0)
         model_item.rotate(yaw, 0, 0, 1)
