@@ -13,7 +13,7 @@ from variables import SENSOR_KEYS
 from data import data_history, start_time
 from plot import DynamicPlot
 from tiles import TilingArea
-from uart import select_serial_port, open_serial_port  # now error-handling with popups
+from uart import select_serial_port, open_serial_port, change_serial_port, get_serial_connection, last_ok_time, start_serial_reader
 from logger import *
 from focus import FocusManager
 
@@ -30,14 +30,8 @@ logging_vars = []  # Captured sensor keys for logging when logging starts.
 csv_file = None
 csv_writer = None
 
-# Global timestamp for the last received OK message.
-last_ok_time = 0
-
 # Global flag to freeze/unfreeze data updates.
 freeze_plots = False
-
-# Global serial connection variable (updated via change_serial_port)
-ser = None
 
 # --- Application Setup ---
 app = QtWidgets.QApplication([])
@@ -122,25 +116,6 @@ ok_indicator.setFixedSize(20, 20)
 ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
 ok_indicator.setFlat(True)
 
-def change_serial_port():
-    """Open the serial port selection popup and update the connection.
-       If already connected, disconnect the serial port."""
-    global ser, last_ok_time
-    if ser is not None:
-        try:
-            ser.close()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(main_window, "Serial Port Error", 
-                                           f"Error disconnecting serial port:\n{e}")
-        ser = None
-        return
-    port = select_serial_port()
-    if port:
-        new_ser = open_serial_port(port)
-        if new_ser:
-            ser = new_ser
-            last_ok_time = time.time()
-
 ok_indicator.clicked.connect(change_serial_port)
 
 # Container for both indicators with some margins.
@@ -151,52 +126,6 @@ corner_layout.setSpacing(10)
 corner_layout.addWidget(freeze_indicator)
 corner_layout.addWidget(ok_indicator)
 main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
-
-class SerialReader:
-    def __init__(self):
-        self._running = True
-
-    def read_serial(self):
-        global ser, last_ok_time
-        while self._running:
-            if ser is not None:
-                try:
-                    if ser.in_waiting:
-                        raw_bytes = ser.read(ser.in_waiting)
-                        raw_lines = raw_bytes.decode('utf-8', errors='ignore').splitlines()
-                        for line in raw_lines:
-                            line = line.strip()
-                            if line == "OK":
-                                last_ok_time = time.time()
-                            if not line or ':' not in line:
-                                continue
-                            key, value_str = line.split(':', 1)
-                            try:
-                                value = float(value_str)
-                            except ValueError:
-                                continue
-                            if key in data_history:
-                                data_history[key].append((value, time.time() - start_time))
-                                if len(data_history[key]) > MAX_POINTS:
-                                    data_history[key] = data_history[key][-MAX_POINTS:]
-                except (OSError, serial.SerialException) as e:
-                    print(f"Error reading from serial port: {e}")
-                    QtWidgets.QMessageBox.critical(main_window, "Serial Port Error",
-                                                   f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
-                    try:
-                        ser.close()
-                    except Exception:
-                        pass
-                    ser = None
-            time.sleep(0.005)  # short sleep to avoid busy waiting
-
-    def stop(self):
-        self._running = False
-
-# Start the serial reader thread
-serial_reader = SerialReader()
-serial_thread = threading.Thread(target=serial_reader.read_serial, daemon=True)
-serial_thread.start()
 
 def update():
     """Update model view, log data and refresh indicators (non-blocking)."""
@@ -215,7 +144,7 @@ def update():
     log_data(data_history)
 
     # Update indicators
-    if ser is None or time.time() - last_ok_time > 1:
+    if get_serial_connection() is None or time.time() - last_ok_time > 1:
         ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
     else:
         ok_indicator.setStyleSheet("background-color: green; border-radius: 10px;")
@@ -267,6 +196,9 @@ def custom_keyPressEvent(event):
     else:
         original_keyPressEvent(event)
 main_window.keyPressEvent = custom_keyPressEvent
+
+# Start the serial reader thread
+start_serial_reader()
 
 main_window.show()
 sys.exit(app.exec())

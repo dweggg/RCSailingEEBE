@@ -58,3 +58,75 @@ def send_sensor(sensor, value):
     else:
         QtWidgets.QMessageBox.warning(None, "Serial Port Warning", "Serial port is not open.")
 
+last_ok_time = 0
+
+def change_serial_port():
+    global ser, last_ok_time
+    # Disconnect if already connected.
+    if ser is not None:
+        try:
+            ser.close()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(None, "Serial Port Error",
+                f"Error disconnecting serial port:\n{e}")
+        ser = None
+        return
+    port = select_serial_port()
+    if port:
+        new_ser = open_serial_port(port)
+        if new_ser:
+            ser = new_ser
+            import time
+            last_ok_time = time.time()
+
+class SerialReader:
+    def __init__(self):
+        self._running = True
+
+    def read_serial(self):
+        global ser, last_ok_time
+        import time
+        from data import data_history, start_time
+        from config import MAX_POINTS  # assuming MAX_POINTS is in config
+        while self._running:
+            if ser is not None:
+                try:
+                    if ser.in_waiting:
+                        raw_bytes = ser.read(ser.in_waiting)
+                        raw_lines = raw_bytes.decode('utf-8', errors='ignore').splitlines()
+                        for line in raw_lines:
+                            line = line.strip()
+                            if line == "OK":
+                                last_ok_time = time.time()
+                            if not line or ':' not in line:
+                                continue
+                            key, value_str = line.split(':', 1)
+                            try:
+                                value = float(value_str)
+                            except ValueError:
+                                continue
+                            if key in data_history:
+                                data_history[key].append((value, time.time() - start_time))
+                                if len(data_history[key]) > MAX_POINTS:
+                                    data_history[key] = data_history[key][-MAX_POINTS:]
+                except (OSError, serial.SerialException) as e:
+                    print(f"Error reading from serial port: {e}")
+                    QtWidgets.QMessageBox.critical(None, "Serial Port Error",
+                        f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
+                    try:
+                        ser.close()
+                    except Exception:
+                        pass
+                    ser = None
+            time.sleep(0.005)
+
+    def stop(self):
+        self._running = False
+
+def start_serial_reader():
+    import threading
+    reader = SerialReader()
+    thread = threading.Thread(target=reader.read_serial, daemon=True)
+    thread.start()
+    return thread
+
