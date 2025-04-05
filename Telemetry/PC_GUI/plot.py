@@ -82,11 +82,41 @@ class DynamicPlot(QtWidgets.QWidget):
         self.toggle_button.setParent(self)
         self.toggle_button.move(self.width() - 70, 5)
 
+        # NEW: Cursor toggle button.
+        self.cursor_button = QtWidgets.QPushButton("C", self)
+        self.cursor_button.setFixedSize(40, 20)
+        self.cursor_button.setStyleSheet(
+            "background-color: rgba(0, 0, 255, 150); color: white; border-radius: 10px; font-weight: bold;"
+        )
+        self.cursor_button.move(self.width() - 120, 5)
+        self.cursor_button.clicked.connect(self.toggle_cursors)
+
         # Container for display mode widgets.
         self.display_container = QtWidgets.QWidget(self)
         self.display_layout = QtWidgets.QVBoxLayout(self.display_container)
         self.display_container.hide()  
         self.layout.addWidget(self.display_container)
+
+        # NEW: Initialize cursor functionality (invisible by default)
+        self.cursors_active = False
+        pen_cursor = pg.mkPen('c', width=1, style=QtCore.Qt.PenStyle.DashLine)
+        self.cursor1_v = pg.InfiniteLine(angle=90, movable=True, pen=pen_cursor)
+        self.cursor1_h = pg.InfiniteLine(angle=0, movable=True, pen=pen_cursor)
+        self.cursor2_v = pg.InfiniteLine(angle=90, movable=True, pen=pen_cursor)
+        self.cursor2_h = pg.InfiniteLine(angle=0, movable=True, pen=pen_cursor)
+        self.cursor1_v.hide(); self.cursor1_h.hide()
+        self.cursor2_v.hide(); self.cursor2_h.hide()
+        self.plot.addItem(self.cursor1_v)
+        self.plot.addItem(self.cursor1_h)
+        self.plot.addItem(self.cursor2_v)
+        self.plot.addItem(self.cursor2_h)
+        self.cursor_info = pg.TextItem("", anchor=(0,0))
+        self.cursor_info.hide()
+        self.plot.addItem(self.cursor_info)
+        self.cursor1_v.sigPositionChanged.connect(self.update_cursor_info)
+        self.cursor1_h.sigPositionChanged.connect(self.update_cursor_info)
+        self.cursor2_v.sigPositionChanged.connect(self.update_cursor_info)
+        self.cursor2_h.sigPositionChanged.connect(self.update_cursor_info)
 
     def remove_self(self):
         """Safely remove itself from TilingArea."""
@@ -98,6 +128,7 @@ class DynamicPlot(QtWidgets.QWidget):
         super().resizeEvent(event)
         self.remove_button.move(self.width() - 25, 5)
         self.toggle_button.move(self.width() - 70, 5)
+        self.cursor_button.move(self.width() - 120, 5)
 
     def add_sensor(self, sensor):
 
@@ -355,6 +386,7 @@ class DynamicPlot(QtWidgets.QWidget):
             self.display_container.show()
             self.remove_button.raise_()
             self.toggle_button.raise_()
+            self.cursor_button.raise_()
             self.populate_display_mode()
         elif self.mode == "display":
             self._backup_sensor_keys = list(self.sensor_keys_assigned)
@@ -450,3 +482,36 @@ class DynamicPlot(QtWidgets.QWidget):
             "sensor_keys": self.sensor_keys_assigned,
             "mode": self.mode
         }
+
+    def toggle_cursors(self):
+        self.cursors_active = not self.cursors_active
+        if self.cursors_active:
+            self.cursor1_v.show(); self.cursor1_h.show()
+            self.cursor2_v.show(); self.cursor2_h.show()
+            self.cursor_info.show()
+            # Set initial positions based on current view range.
+            x_bounds = self.plot.viewRange()[0]
+            y_bounds = self.plot.viewRange()[1]
+            self.cursor1_v.setValue(x_bounds[0])
+            self.cursor2_v.setValue(x_bounds[1])
+            self.cursor1_h.setValue(y_bounds[0])
+            self.cursor2_h.setValue(y_bounds[1])
+            self.update_cursor_info()
+        else:
+            self.cursor1_v.hide(); self.cursor1_h.hide()
+            self.cursor2_v.hide(); self.cursor2_h.hide()
+            self.cursor_info.hide()
+
+    def update_cursor_info(self):
+        # Retrieve positions.
+        t1 = self.cursor1_v.value()
+        t2 = self.cursor2_v.value()
+        y1 = self.cursor1_h.value()
+        y2 = self.cursor2_h.value()
+        delta_t = abs(t2 - t1)
+        delta_y = abs(y2 - y1)
+        info_text = f"t1: {t1:.3f}, t2: {t2:.3f}, Δt: {delta_t:.3f}\n" \
+                    f"y1: {y1:.3f}, y2: {y2:.3f}, Δy: {delta_y:.3f}"
+        self.cursor_info.setText(info_text)
+        # Position info text near the upper left cursor.
+        self.cursor_info.setPos(t1, y2)
