@@ -17,9 +17,6 @@ from uart import select_serial_port, open_serial_port, change_serial_port, get_s
 from logger import *
 from focus import FocusManager
 
-# Import 3D Model View functionality
-from model import create_3d_model_view, load_model
-
 # Import menu setup
 from menu import setup_menu_bar
 
@@ -66,33 +63,11 @@ tiling_area = TilingArea()
 # --- Right Column: 3D Model View (Initially Hidden) ---
 
 
-# --- Toggle Button for 3D Model Visibility ---
-def toggle_model_view():
-    """Toggle the visibility of the 3D model section."""
-    model_view.setVisible(not model_view.isVisible())
-    toggle_button.setText("Hide 3D Model" if model_view.isVisible() else "Show 3D Model")
-
-toggle_button = QtWidgets.QPushButton("Show 3D Model")
-toggle_button.clicked.connect(toggle_model_view)
-left_layout.addWidget(toggle_button)
-
-model_view = create_3d_model_view()
-model_item = load_model()
-if model_item is not None:
-    model_view.addItem(model_item)
-else:
-    # Disable the toggle button if no model was loaded.
-    toggle_button.setEnabled(False)
-model_view.setFixedWidth(400)
-model_view.setVisible(False)  # Initially hidden
-
-
 # --- Create Horizontal Splitter ---
 main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
 main_layout.addWidget(main_splitter)
 main_splitter.addWidget(left_widget)
 main_splitter.addWidget(tiling_area)
-main_splitter.addWidget(model_view)
 main_splitter.setStretchFactor(0, 1)
 main_splitter.setStretchFactor(1, 3)
 main_splitter.setStretchFactor(2, 1)
@@ -128,17 +103,7 @@ corner_layout.addWidget(ok_indicator)
 main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
 
 def update():
-    """Update model view, log data and refresh indicators (non-blocking)."""
-    # If the 3D model view is visible and the required sensor data is available, update it.
-    if model_view.isVisible() and data_history['ROL'] and data_history['PIT'] and data_history['YAW']:
-        roll = data_history['ROL'][-1][0]
-        pitch = data_history['PIT'][-1][0]
-        yaw = 0#data_history['YAW'][-1][0]
-        model_item.resetTransform()
-        model_item.translate(0, 0, 0)
-        model_item.rotate(yaw, 0, 0, 1)
-        model_item.rotate(pitch, 0, 1, 0)
-        model_item.rotate(roll, 1, 0, 0)
+
 
     # Log data (every new data point has been appended by the serial thread).
     log_data(data_history)
