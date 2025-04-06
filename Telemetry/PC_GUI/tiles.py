@@ -186,12 +186,24 @@ class TilingArea(QtWidgets.QWidget):
                 # Restore assigned sensor keys.
                 for sensor in plot_state.get("sensor_keys", []):
                     plot.add_sensor(sensor)
-                # Restore display mode if necessary.
-                if plot_state.get("display_mode", "plot") == "display" and not plot.display_mode:
-                    plot.toggle_mode()
                 # Connect signals.
                 plot.selected_signal.connect(self.set_selected_plot)
                 plot.remove_button.clicked.connect(lambda p=plot: self.remove_plot(p))
+                # --- Updated mode retrieval ---
+                target_mode = plot_state.get("mode", "plot")
+                if target_mode == "display" and plot.mode == "plot":
+                    plot.toggle_mode()
+                elif target_mode == "xy" and plot.mode == "plot":
+                    plot.toggle_mode()
+                    plot.toggle_mode()
+                # --- End updated mode retrieval ---
+                # Restore additional state based on mode.
+                if target_mode == "display":
+                    if "text_size" in plot_state:
+                        plot.update_display_text_size(plot_state["text_size"])
+                else:  # for "plot" and "xy"
+                    if "time_window" in plot_state:
+                        plot.time_window_edit.setText(str(plot_state["time_window"]))
                 new_row_splitter.addWidget(plot)
 
         self.update_plot_positions()

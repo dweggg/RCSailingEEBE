@@ -20,6 +20,7 @@ class DynamicPlot(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.sensor_keys_assigned = []  
         self.curves = {}
+        self.display_text_size = 24  # Moved assignment before init_ui()
         self.init_ui()
         self.setAcceptDrops(True)
         self.setStyleSheet("border: 2px solid gray;")
@@ -58,8 +59,6 @@ class DynamicPlot(QtWidgets.QWidget):
         self.time_window_edit.setStyleSheet(
             "background-color: rgba(200, 200, 200, 150); border: 1px solid gray; border-radius: 5px;"
         )
-        # Position it at the top left (adjust as needed)
-        self.time_window_edit.move(10, 5)
         self.time_window_edit.editingFinished.connect(self.update_plot)
 
         # Remove button.
@@ -92,9 +91,24 @@ class DynamicPlot(QtWidgets.QWidget):
         self.cursor_button.move(self.width() - 120, 5)
         self.cursor_button.clicked.connect(self.toggle_cursors)
 
-        # Container for display mode widgets.
+        # Create display container with a top control for text size.
         self.display_container = QtWidgets.QWidget(self)
-        self.display_layout = QtWidgets.QVBoxLayout(self.display_container)
+        # Replace previous self.display_layout with a new container layout.
+        self.display_container_layout = QtWidgets.QVBoxLayout(self.display_container)
+        self.display_container_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Add a small QLineEdit for text size instead:
+        self.text_size_edit = QtWidgets.QLineEdit(self.display_container)
+        self.text_size_edit.setPlaceholderText("Text Size")
+        self.text_size_edit.setFixedWidth(50)
+        self.text_size_edit.setStyleSheet("background-color: rgba(200, 200, 200, 150); border: 1px solid gray; border-radius: 5px;")
+        self.text_size_edit.setText(str(self.display_text_size))
+        self.text_size_edit.editingFinished.connect(self.process_text_size_edit)
+        
+        # Sub-layout for sensor display widgets.
+        self.widget_display_layout = QtWidgets.QVBoxLayout()
+        self.display_container_layout.addLayout(self.widget_display_layout)
+        
         self.display_container.hide()  
         self.layout.addWidget(self.display_container)
 
@@ -130,6 +144,14 @@ class DynamicPlot(QtWidgets.QWidget):
         self.remove_button.move(self.width() - 25, 5)
         self.toggle_button.move(self.width() - 70, 5)
         self.cursor_button.move(self.width() - 120, 5)
+        # New: reposition time_window_edit and text_size_edit to bottom-right corners
+        margin = 10
+        self.time_window_edit.move(self.plot.width() - self.time_window_edit.width() - margin,
+                                   self.plot.height() - self.time_window_edit.height() - margin)
+        if self.display_container.isVisible():
+            self.text_size_edit.move(self.display_container.width() - self.text_size_edit.width() - margin,
+                                     self.display_container.height() - self.text_size_edit.height() - margin)
+            self.text_size_edit.raise_()
 
     def add_sensor(self, sensor):
 
@@ -157,18 +179,18 @@ class DynamicPlot(QtWidgets.QWidget):
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
                 name_label = QtWidgets.QLabel(get_sensor_name(sensor) + ": ")
-                name_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+                name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(name_label)
                 
                 editable_input = QtWidgets.QLineEdit()
                 editable_input.setPlaceholderText(f"Enter {sensor} value...")
-                editable_input.setStyleSheet("font-size: 24px; font-weight: bold;")
+                editable_input.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 editable_input.returnPressed.connect(
                     lambda sensor=sensor, input_field=editable_input: self.on_return_pressed(sensor, input_field)
                 )
                 h_layout.addWidget(editable_input)
                 self.tx_widgets[sensor] = (container, name_label, editable_input)
-                self.display_layout.addWidget(container)
+                self.widget_display_layout.addWidget(container)  # Use new sub-layout.
         else:
             if sensor not in self.rx_widgets:
                 container = QtWidgets.QWidget()
@@ -177,15 +199,15 @@ class DynamicPlot(QtWidgets.QWidget):
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
                 name_label = QtWidgets.QLabel(get_sensor_name(sensor) + ": ")
-                name_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+                name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(name_label)
                 
                 output_field = QtWidgets.QLineEdit()
                 output_field.setReadOnly(True)
-                output_field.setStyleSheet("font-size: 24px; font-weight: bold;")
+                output_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(output_field)
                 self.rx_widgets[sensor] = (container, name_label, output_field)
-                self.display_layout.addWidget(container)
+                self.widget_display_layout.addWidget(container)
 
     def remove_sensor(self, sensor):
         """Removes an existing sensor stream from the plot."""
@@ -388,6 +410,8 @@ class DynamicPlot(QtWidgets.QWidget):
             self.remove_button.raise_()
             self.toggle_button.raise_()
             self.cursor_button.raise_()
+            # New: bring text_size_edit to the front
+            self.text_size_edit.raise_()
             self.populate_display_mode()
         elif self.mode == "display":
             self._backup_sensor_keys = list(self.sensor_keys_assigned)
@@ -434,8 +458,9 @@ class DynamicPlot(QtWidgets.QWidget):
 
     def populate_display_mode(self):
         """(Re)populate the display layout with persistent widgets for each sensor."""
-        while self.display_layout.count():
-            item = self.display_layout.takeAt(0)
+        # Clear previous widgets.
+        while self.widget_display_layout.count():
+            item = self.widget_display_layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
         for sensor in self.sensor_keys_assigned:
@@ -443,12 +468,12 @@ class DynamicPlot(QtWidgets.QWidget):
                 if sensor not in self.tx_widgets:
                     self.add_display_widget(sensor)
                 else:
-                    self.display_layout.addWidget(self.tx_widgets[sensor][0])
+                    self.widget_display_layout.addWidget(self.tx_widgets[sensor][0])
             else:
                 if sensor not in self.rx_widgets:
                     self.add_display_widget(sensor)
                 else:
-                    self.display_layout.addWidget(self.rx_widgets[sensor][0])
+                    self.widget_display_layout.addWidget(self.rx_widgets[sensor][0])
         self.update_display_widgets(data_history)
 
     def on_return_pressed(self, sensor, input_field):
@@ -464,7 +489,7 @@ class DynamicPlot(QtWidgets.QWidget):
         data_history[sensor].append((new_value, time.time() - start_time))
         self.last_tx_values[sensor] = new_value
         input_field.setStyleSheet("background-color: green; font-size: 24px; font-weight: bold;")
-        QtCore.QTimer.singleShot(150, lambda: input_field.setStyleSheet("font-size: 24px; font-weight: bold;"))
+        QtCore.QTimer.singleShot(150, lambda: input_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;"))
         print(f"Updated {sensor} with value: {new_value}")
 
     def clear_layout(self, layout):
@@ -476,13 +501,21 @@ class DynamicPlot(QtWidgets.QWidget):
                     child.widget().deleteLater()
 
     def get_state(self):
-        """Return the current state of the plot as a dictionary."""
         geom = self.geometry().getRect()
-        return {
+        state = {
             "geometry": {"x": geom[0], "y": geom[1], "width": geom[2], "height": geom[3]},
             "sensor_keys": self.sensor_keys_assigned,
             "mode": self.mode
         }
+        if self.mode == "display":
+            state["text_size"] = self.display_text_size
+        elif self.mode in ["plot", "xy"]:
+            try:
+                time_window = float(self.time_window_edit.text())
+            except ValueError:
+                time_window = 0
+            state["time_window"] = time_window
+        return state
 
     def toggle_cursors(self):
         self.cursors_active = not self.cursors_active
@@ -503,6 +536,18 @@ class DynamicPlot(QtWidgets.QWidget):
             self.cursor2_v.hide(); self.cursor2_h.hide()
             self.cursor_info.hide()
 
+    def update_display_text_size(self, new_size):
+        """Update display text size and refresh styles for display widgets."""
+        self.display_text_size = new_size
+        # Update TX widgets.
+        for sensor, (container, name_label, input_field) in self.tx_widgets.items():
+            name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
+            input_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
+        # Update RX widgets.
+        for sensor, (container, name_label, output_field) in self.rx_widgets.items():
+            name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
+            output_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
+
     def update_cursor_info(self):
         # Retrieve positions.
         t1 = self.cursor1_v.value()
@@ -516,3 +561,11 @@ class DynamicPlot(QtWidgets.QWidget):
         self.cursor_info.setText(info_text)
         # Position info text near the upper left cursor.
         self.cursor_info.setPos(t1, y2)
+
+    def process_text_size_edit(self):
+        try:
+            new_size = int(self.text_size_edit.text())
+            new_size = max(10, min(50, new_size))
+        except ValueError:
+            new_size = self.display_text_size
+        self.update_display_text_size(new_size)

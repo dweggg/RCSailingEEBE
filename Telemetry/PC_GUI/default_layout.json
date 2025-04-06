@@ -6,13 +6,14 @@
                     "geometry": {
                         "x": 0,
                         "y": 0,
-                        "width": 374,
-                        "height": 204
+                        "width": 404,
+                        "height": 238
                     },
                     "sensor_keys": [
                         "CPU"
                     ],
                     "mode": "plot",
+                    "time_window": 0,
                     "position": {
                         "row": 0,
                         "col": 0
@@ -20,15 +21,16 @@
                 },
                 {
                     "geometry": {
-                        "x": 378,
+                        "x": 408,
                         "y": 0,
-                        "width": 463,
-                        "height": 204
+                        "width": 403,
+                        "height": 238
                     },
                     "sensor_keys": [
                         "BAT"
                     ],
                     "mode": "plot",
+                    "time_window": 0,
                     "position": {
                         "row": 0,
                         "col": 1
@@ -36,10 +38,10 @@
                 },
                 {
                     "geometry": {
-                        "x": 845,
+                        "x": 815,
                         "y": 0,
-                        "width": 354,
-                        "height": 204
+                        "width": 383,
+                        "height": 238
                     },
                     "sensor_keys": [
                         "MOD",
@@ -48,6 +50,7 @@
                         "SPE"
                     ],
                     "mode": "display",
+                    "text_size": 30,
                     "position": {
                         "row": 0,
                         "col": 2
@@ -61,14 +64,15 @@
                     "geometry": {
                         "x": 0,
                         "y": 0,
-                        "width": 405,
-                        "height": 288
+                        "width": 597,
+                        "height": 239
                     },
                     "sensor_keys": [
                         "ACX",
                         "ACY"
                     ],
                     "mode": "xy",
+                    "time_window": 0,
                     "position": {
                         "row": 1,
                         "col": 0
@@ -76,10 +80,10 @@
                 },
                 {
                     "geometry": {
-                        "x": 409,
+                        "x": 601,
                         "y": 0,
-                        "width": 790,
-                        "height": 288
+                        "width": 597,
+                        "height": 239
                     },
                     "sensor_keys": [
                         "ROL",
@@ -87,6 +91,7 @@
                         "YAW"
                     ],
                     "mode": "plot",
+                    "time_window": 0,
                     "position": {
                         "row": 1,
                         "col": 1
@@ -100,13 +105,14 @@
                     "geometry": {
                         "x": 0,
                         "y": 0,
-                        "width": 405,
-                        "height": 271
+                        "width": 597,
+                        "height": 238
                     },
                     "sensor_keys": [
                         "SPE"
                     ],
                     "mode": "plot",
+                    "time_window": 0,
                     "position": {
                         "row": 2,
                         "col": 0
@@ -114,10 +120,10 @@
                 },
                 {
                     "geometry": {
-                        "x": 409,
+                        "x": 601,
                         "y": 0,
-                        "width": 790,
-                        "height": 271
+                        "width": 597,
+                        "height": 238
                     },
                     "sensor_keys": [
                         "RUD",
@@ -125,6 +131,7 @@
                         "TRI"
                     ],
                     "mode": "plot",
+                    "time_window": 0,
                     "position": {
                         "row": 2,
                         "col": 1
