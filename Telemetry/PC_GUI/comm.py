@@ -93,3 +93,5 @@ class SerialComm(CommProtocol):
             thread = threading.Thread(target=reader.read_serial, daemon=True)
             thread.start()
             self.reader_thread = thread
+
+comm = SerialComm()

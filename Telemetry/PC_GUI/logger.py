@@ -17,10 +17,11 @@ class CSVLoggerWidget(QtWidgets.QGroupBox):
     def init_ui(self):
         # Change to QVBoxLayout for vertical stacking
         self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(10, 25, 10, 10)  # Added margins: left, top, right, bottom
         
         # Instead of checkboxes, we use a QListWidget to show selected sensors.
         self.sensor_list_widget = QtWidgets.QListWidget()
-        self.sensor_list_widget.setFixedHeight(200)  # Height for the list of selected sensors   
+        self.sensor_list_widget.setMinimumHeight(100)  # Minimum height for the list of selected sensors   
         self.layout.addWidget(self.sensor_list_widget)
         
         # The log button is now placed below the sensor list.

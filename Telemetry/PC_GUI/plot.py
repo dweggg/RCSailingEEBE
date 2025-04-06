@@ -7,6 +7,7 @@ from uart import send_sensor
 from data import data_history, start_time
 import time
 import bisect
+from comm import comm
 
 class DynamicPlot(QtWidgets.QWidget):
     selected_signal = QtCore.pyqtSignal(object)
@@ -457,7 +458,7 @@ class DynamicPlot(QtWidgets.QWidget):
         except ValueError:
             return
 
-        send_sensor(sensor, new_value)
+        send_sensor(comm, sensor, new_value)
         if sensor not in data_history:
             data_history[sensor] = []
         data_history[sensor].append((new_value, time.time() - start_time))

@@ -17,7 +17,7 @@ from focus import FocusManager
 from menu import setup_menu_bar
 
 # Import the new communication module
-from comm import SerialComm
+from comm import SerialComm, comm
 
 # --- Global Logging Variables ---
 logging_active = False
@@ -40,8 +40,8 @@ main_window.resize(1400, 800)
 # Create the central widget and layout (we won't add the indicator here)
 central_widget = QtWidgets.QWidget()
 main_window.setCentralWidget(central_widget)
-main_layout = QtWidgets.QHBoxLayout(central_widget)
-central_widget.setLayout(main_layout)
+central_layout = QtWidgets.QHBoxLayout(central_widget)
+central_widget.setLayout(central_layout)
 
 # --- Left Column: Variables List and CSV Logger ---
 left_widget = QtWidgets.QWidget()
@@ -50,7 +50,6 @@ left_layout.setContentsMargins(5, 5, 5, 5)
 left_layout.setSpacing(5)
 
 variables_list = VariablesList()
-variables_list.setFixedHeight(500)
 left_layout.addWidget(variables_list)
 
 csv_logger_widget = CSVLoggerWidget()
@@ -64,7 +63,7 @@ tiling_area = TilingArea()
 
 # --- Create Horizontal Splitter ---
 main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
-main_layout.addWidget(main_splitter)
+central_layout.addWidget(main_splitter)
 main_splitter.addWidget(left_widget)
 main_splitter.addWidget(tiling_area)
 main_splitter.setStretchFactor(0, 1)
@@ -81,17 +80,16 @@ setup_menu_bar(main_window, tiling_area)
 # --- Create Indicators in Menu Bar Corner ---
 # Freeze indicator (shows pause status)
 freeze_indicator = QtWidgets.QLabel()
-freeze_indicator.setFixedSize(20, 20)
+freeze_indicator.setFixedSize(20, 20)  # enforce circular dimensions
 freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
 
 # OK indicator (now a button to open the serial port selection popup)
 ok_indicator = QtWidgets.QPushButton("")
-ok_indicator.setFixedSize(20, 20)
+ok_indicator.setFixedSize(20, 20)  # enforce circular dimensions
 ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
 ok_indicator.setFlat(True)
 
 # Create the communication instance and wire up the connection button.
-comm = SerialComm()
 ok_indicator.clicked.connect(comm.change_connection)
 
 # Container for both indicators with some margins.

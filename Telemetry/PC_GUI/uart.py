@@ -33,28 +33,26 @@ def open_serial_port(port):
 def get_serial_connection():
     return ser
 
-def send_sensor(sensor, value):
+def send_sensor(comm, sensor, value):
     """Send a sensor value over the serial port using the given protocol.
     
-    Protocol format: "KEY:%.?f\r\n" where ? depends on the value precision.
+    Protocol format: "KEY:%.?f\r\n"
     """
-    global ser
     if not isinstance(value, (int, float)):
         raise ValueError("Value must be a number.")
-    if ser and ser.is_open:
+    if comm.ser and comm.ser.is_open:
         message = f"{sensor}:{value:.2f}\r\n"
         try:
-            ser.write(message.encode("utf-8"))
-            ser.flush()
+            comm.ser.write(message.encode("utf-8"))
+            comm.ser.flush()
         except (serial.SerialException, OSError) as e:
-            # Log the error and close the port to avoid repeated errors.
             print(f"Error sending data on serial port: {e}")
             QtWidgets.QMessageBox.critical(None, "Serial Port Error", f"Error sending data:\n{e}")
             try:
-                ser.close()
+                comm.ser.close()
             except Exception:
                 pass
-            ser = None
+            comm.ser = None
     else:
         QtWidgets.QMessageBox.warning(None, "Serial Port Warning", "Serial port is not open.")
 
@@ -88,6 +86,8 @@ class SerialReader:
         import time
         from data import data_history, start_time
         from config import MAX_POINTS  # assuming MAX_POINTS is in config
+        import re
+        pattern = re.compile(r"^-?\d+\.\d\d$")
         while self._running:
             if self.comm.ser is not None:
                 try:
@@ -101,6 +101,9 @@ class SerialReader:
                             if not line or ':' not in line:
                                 continue
                             key, value_str = line.split(':', 1)
+                            # Only use complete frames with a proper float format (two decimals)
+                            if not pattern.match(value_str):
+                                continue
                             try:
                                 value = float(value_str)
                             except ValueError:
