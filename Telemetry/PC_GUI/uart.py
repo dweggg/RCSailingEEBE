@@ -80,24 +80,24 @@ def change_serial_port():
             last_ok_time = time.time()
 
 class SerialReader:
-    def __init__(self):
+    def __init__(self, comm):
         self._running = True
+        self.comm = comm
 
     def read_serial(self):
-        global ser, last_ok_time
         import time
         from data import data_history, start_time
         from config import MAX_POINTS  # assuming MAX_POINTS is in config
         while self._running:
-            if ser is not None:
+            if self.comm.ser is not None:
                 try:
-                    if ser.in_waiting:
-                        raw_bytes = ser.read(ser.in_waiting)
+                    if self.comm.ser.in_waiting:
+                        raw_bytes = self.comm.ser.read(self.comm.ser.in_waiting)
                         raw_lines = raw_bytes.decode('utf-8', errors='ignore').splitlines()
                         for line in raw_lines:
                             line = line.strip()
                             if line == "OK":
-                                last_ok_time = time.time()
+                                self.comm.last_ok_time = time.time()
                             if not line or ':' not in line:
                                 continue
                             key, value_str = line.split(':', 1)
@@ -114,18 +114,18 @@ class SerialReader:
                     QtWidgets.QMessageBox.critical(None, "Serial Port Error",
                         f"Error reading from serial port:\n{e}\n\nThe port will be closed.")
                     try:
-                        ser.close()
+                        self.comm.ser.close()
                     except Exception:
                         pass
-                    ser = None
+                    self.comm.ser = None
             time.sleep(0.005)
 
     def stop(self):
         self._running = False
 
-def start_serial_reader():
+def start_serial_reader(comm):
     import threading
-    reader = SerialReader()
+    reader = SerialReader(comm)
     thread = threading.Thread(target=reader.read_serial, daemon=True)
     thread.start()
     return thread

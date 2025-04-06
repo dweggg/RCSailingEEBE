@@ -6,19 +6,18 @@ import time
 import numpy as np
 import pyqtgraph as pg
 from PyQt6 import QtWidgets, QtCore, QtGui
-import serial
 import threading
 
 from variables import SENSOR_KEYS
 from data import data_history, start_time
 from plot import DynamicPlot
 from tiles import TilingArea
-from uart import select_serial_port, open_serial_port, change_serial_port, get_serial_connection, last_ok_time, start_serial_reader
 from logger import *
 from focus import FocusManager
-
-# Import menu setup
 from menu import setup_menu_bar
+
+# Import the new communication module
+from comm import SerialComm
 
 # --- Global Logging Variables ---
 logging_active = False
@@ -91,7 +90,9 @@ ok_indicator.setFixedSize(20, 20)
 ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
 ok_indicator.setFlat(True)
 
-ok_indicator.clicked.connect(change_serial_port)
+# Create the communication instance and wire up the connection button.
+comm = SerialComm()
+ok_indicator.clicked.connect(comm.change_connection)
 
 # Container for both indicators with some margins.
 corner_container = QtWidgets.QWidget()
@@ -103,13 +104,11 @@ corner_layout.addWidget(ok_indicator)
 main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
 
 def update():
-
-
     # Log data (every new data point has been appended by the serial thread).
     log_data(data_history)
 
-    # Update indicators
-    if get_serial_connection() is None or time.time() - last_ok_time > 1:
+    # Update indicators based on the communication connection and last OK time.
+    if not comm.is_connected() or time.time() - comm.last_ok_time > 1:
         ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
     else:
         ok_indicator.setStyleSheet("background-color: green; border-radius: 10px;")
@@ -162,8 +161,8 @@ def custom_keyPressEvent(event):
         original_keyPressEvent(event)
 main_window.keyPressEvent = custom_keyPressEvent
 
-# Start the serial reader thread
-start_serial_reader()
+# Start the communication reader thread
+comm.start_reader()
 
 main_window.show()
 sys.exit(app.exec())
