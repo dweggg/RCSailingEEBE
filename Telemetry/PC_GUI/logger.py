@@ -24,12 +24,19 @@ class CSVLoggerWidget(QtWidgets.QGroupBox):
         self.sensor_list_widget.setMinimumHeight(100)  # Minimum height for the list of selected sensors   
         self.layout.addWidget(self.sensor_list_widget)
         
-        # The log button is now placed below the sensor list.
+        # Create horizontal layout for logging buttons
+        button_layout = QtWidgets.QHBoxLayout()
         self.log_button = QtWidgets.QPushButton("Start Logging")
-        self.layout.addWidget(self.log_button)
+        button_layout.addWidget(self.log_button)
+        self.load_button = QtWidgets.QPushButton("Load Log")
+        button_layout.addWidget(self.load_button)
+        self.layout.addLayout(button_layout)
         
         # Start with a gray border for the group box.
         self.setStyleSheet("QGroupBox { border: 2px solid gray; }")
+        
+        # Connect the new Load Log button
+        self.load_button.clicked.connect(lambda: load_log(data_history))
 
     def mousePressEvent(self, event):
         FocusManager.set_active(self)
@@ -135,6 +142,46 @@ def log_data(data_history):
         if logging_vars:
             for sensor in logging_vars:
                 # Write the latest value for each sensor (or an empty string if no data).
-                row.append(data_history[sensor][-1] if data_history[sensor] else "")
+
+                #each data_history element contains the value and timestamp, so we only need the value to be logged
+                row.append(data_history[sensor][-1][0] if data_history[sensor] else "")
+                
+        else:
+            # If no variables are selected, log only time.
+            row.append("")
+        # Write the row to the CSV file.
         csv_writer.writerow(row)
         csv_file.flush()
+
+
+def load_log(data_history):
+    """
+    Load a CSV log, only allowed when no active communication.
+    """
+    from comm import comm  # local import to avoid circular dependency
+    if comm.is_connected():
+        QtWidgets.QMessageBox.warning(None, "Load Log", "Cannot load log while communication is active.")
+        return
+    fname, _ = QtWidgets.QFileDialog.getOpenFileName(
+        None, "Open CSV Log", "", "CSV Files (*.csv)"
+    )
+    if not fname:
+        return
+    data_history.clear()
+    with open(fname, 'r') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        if not header:
+            return
+        sensors = header[1:]
+        for sensor in sensors:
+            data_history[sensor] = []
+        for row in reader:
+            t_val = float(row[0]) if row[0] else 0
+            for i, sensor in enumerate(sensors, start=1):
+                val = float(row[i]) if row[i] else 0
+                data_history[sensor].append((val, t_val))
+    # Immediately update plots if an update callback is set as a property on the application
+    update_plots_cb = QtWidgets.QApplication.instance().property("update_plots")
+    if callable(update_plots_cb):
+        update_plots_cb()
