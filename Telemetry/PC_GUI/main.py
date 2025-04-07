@@ -8,7 +8,7 @@ import pyqtgraph as pg
 from PyQt6 import QtWidgets, QtCore, QtGui
 import threading
 
-from variables import SENSOR_KEYS
+from signals import SIGNAL_KEYS
 from data import data_history, start_time
 from plot import DynamicPlot
 from tiles import TilingArea
@@ -22,7 +22,7 @@ from comm import SerialComm, comm
 # --- Global Logging Variables ---
 logging_active = False
 logging_start_time = None
-logging_vars = []  # Captured sensor keys for logging when logging starts.
+logging_vars = []  # Captured signal keys for logging when logging starts.
 csv_file = None
 csv_writer = None
 
@@ -49,8 +49,8 @@ left_layout = QtWidgets.QVBoxLayout(left_widget)
 left_layout.setContentsMargins(5, 5, 5, 5)
 left_layout.setSpacing(5)
 
-variables_list = VariablesList()
-left_layout.addWidget(variables_list)
+signals_list = SignalsList()
+left_layout.addWidget(signals_list)
 
 csv_logger_widget = CSVLoggerWidget()
 left_layout.addWidget(csv_logger_widget)
@@ -134,19 +134,19 @@ plot_timer.timeout.connect(update_plots)
 plot_timer.start(PLOT_UPDATE_INTERVAL_MS)
 
 def add_variable_to_selected(item):
-    sensor = item.data(QtCore.Qt.ItemDataRole.UserRole)
+    signal = item.data(QtCore.Qt.ItemDataRole.UserRole)
     active_widget = FocusManager.get_active()
     if active_widget is None:
         return
     if isinstance(active_widget, CSVLoggerWidget):
-        active_widget.toggle_sensor(sensor)
+        active_widget.toggle_signal(signal)
     else:
-        if sensor not in active_widget.sensor_keys_assigned:
-            active_widget.add_sensor(sensor)
+        if signal not in active_widget.signal_keys_assigned:
+            active_widget.add_signal(signal)
         else:
-            active_widget.remove_sensor(sensor)
+            active_widget.remove_signal(signal)
 
-variables_list.itemDoubleClicked.connect(add_variable_to_selected)
+signals_list.itemDoubleClicked.connect(add_variable_to_selected)
 
 tiling_area.add_initial_row()
 

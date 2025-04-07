@@ -9,7 +9,7 @@
                         "width": 404,
                         "height": 238
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "CPU"
                     ],
                     "mode": "plot",
@@ -26,7 +26,7 @@
                         "width": 403,
                         "height": 238
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "BAT"
                     ],
                     "mode": "plot",
@@ -43,7 +43,7 @@
                         "width": 383,
                         "height": 238
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "MOD",
                         "BAT",
                         "CPU",
@@ -67,7 +67,7 @@
                         "width": 597,
                         "height": 239
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "ACX",
                         "ACY"
                     ],
@@ -85,7 +85,7 @@
                         "width": 597,
                         "height": 239
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "ROL",
                         "PIT",
                         "YAW"
@@ -108,7 +108,7 @@
                         "width": 597,
                         "height": 238
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "SPE"
                     ],
                     "mode": "plot",
@@ -125,7 +125,7 @@
                         "width": 597,
                         "height": 238
                     },
-                    "sensor_keys": [
+                    "signal_keys": [
                         "RUD",
                         "TWI",
                         "TRI"

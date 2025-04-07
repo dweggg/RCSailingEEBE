@@ -1,5 +1,5 @@
 {
-    "sensor_keys": [
+    "signal_keys": [
         {"key": "ACX", "dir": "RX", "name": "Accel X [m/s^2]"},
         {"key": "ACY", "dir": "RX", "name": "Accel Y [m/s^2]"},
         {"key": "ACZ", "dir": "RX", "name": "Accel Z [m/s^2]"},

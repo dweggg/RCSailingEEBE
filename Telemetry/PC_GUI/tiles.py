@@ -143,7 +143,7 @@ class TilingArea(QtWidgets.QWidget):
     def get_layout_state(self):
         """
         Returns a dictionary capturing the layout state, including:
-         - Each row's list of plots (with their geometry, assigned sensor keys, and mode)
+         - Each row's list of plots (with their geometry, assigned signal keys, and mode)
          - The positions (row, col) of each plot
         """
         layout_state = {"rows": []}
@@ -183,9 +183,9 @@ class TilingArea(QtWidgets.QWidget):
             for plot_state in row.get("plots", []):
                 # Create a new DynamicPlot.
                 plot = DynamicPlot(tiling_area=self)
-                # Restore assigned sensor keys.
-                for sensor in plot_state.get("sensor_keys", []):
-                    plot.add_sensor(sensor)
+                # Restore assigned signal keys.
+                for signal in plot_state.get("signal_keys", []):
+                    plot.add_signal(signal)
                 # Connect signals.
                 plot.selected_signal.connect(self.set_selected_plot)
                 plot.remove_button.clicked.connect(lambda p=plot: self.remove_plot(p))

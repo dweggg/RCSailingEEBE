@@ -33,15 +33,15 @@ def open_serial_port(port):
 def get_serial_connection():
     return ser
 
-def send_sensor(comm, sensor, value):
-    """Send a sensor value over the serial port using the given protocol.
+def send_signal(comm, signal, value):
+    """Send a signal value over the serial port using the given protocol.
     
     Protocol format: "KEY:%.?f\r\n"
     """
     if not isinstance(value, (int, float)):
         raise ValueError("Value must be a number.")
     if comm.ser and comm.ser.is_open:
-        message = f"{sensor}:{value:.2f}\r\n"
+        message = f"{signal}:{value:.2f}\r\n"
         try:
             comm.ser.write(message.encode("utf-8"))
             comm.ser.flush()

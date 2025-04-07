@@ -1,7 +1,7 @@
 import csv
 import time
 from PyQt6 import QtWidgets, QtCore
-from variables import VariablesList
+from signals import SignalsList
 from focus import FocusManager
 from data import *
 
@@ -19,10 +19,10 @@ class CSVLoggerWidget(QtWidgets.QGroupBox):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(10, 25, 10, 10)  # Added margins: left, top, right, bottom
         
-        # Instead of checkboxes, we use a QListWidget to show selected sensors.
-        self.sensor_list_widget = QtWidgets.QListWidget()
-        self.sensor_list_widget.setMinimumHeight(100)  # Minimum height for the list of selected sensors   
-        self.layout.addWidget(self.sensor_list_widget)
+        # Instead of checkboxes, we use a QListWidget to show selected signals.
+        self.signal_list_widget = QtWidgets.QListWidget()
+        self.signal_list_widget.setMinimumHeight(100)  # Minimum height for the list of selected signals   
+        self.layout.addWidget(self.signal_list_widget)
         
         # Create horizontal layout for logging buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -51,38 +51,38 @@ class CSVLoggerWidget(QtWidgets.QGroupBox):
             widget = widget.parent()
         return False
 
-    def add_sensor(self, sensor):
-        """Add sensor to the logger list if not already present."""
-        for index in range(self.sensor_list_widget.count()):
-            if self.sensor_list_widget.item(index).text() == sensor:
+    def add_signal(self, signal):
+        """Add signal to the logger list if not already present."""
+        for index in range(self.signal_list_widget.count()):
+            if self.signal_list_widget.item(index).text() == signal:
                 return
-        self.sensor_list_widget.addItem(sensor)
+        self.signal_list_widget.addItem(signal)
     
-    def remove_sensor(self, sensor):
-        """Remove sensor from the logger list."""
-        for index in range(self.sensor_list_widget.count()):
-            if self.sensor_list_widget.item(index).text() == sensor:
-                self.sensor_list_widget.takeItem(index)
+    def remove_signal(self, signal):
+        """Remove signal from the logger list."""
+        for index in range(self.signal_list_widget.count()):
+            if self.signal_list_widget.item(index).text() == signal:
+                self.signal_list_widget.takeItem(index)
                 return
     
-    def toggle_sensor(self, sensor):
-        """Toggle sensor in the logger list."""
+    def toggle_signal(self, signal):
+        """Toggle signal in the logger list."""
         found = False
-        for index in range(self.sensor_list_widget.count()):
-            if self.sensor_list_widget.item(index).text() == sensor:
+        for index in range(self.signal_list_widget.count()):
+            if self.signal_list_widget.item(index).text() == signal:
                 found = True
                 break
         if found:
-            self.remove_sensor(sensor)
+            self.remove_signal(signal)
         else:
-            self.add_sensor(sensor)
+            self.add_signal(signal)
     
-    def get_sensors(self):
-        """Return a list of sensor names currently selected for logging."""
-        sensors = []
-        for index in range(self.sensor_list_widget.count()):
-            sensors.append(self.sensor_list_widget.item(index).text())
-        return sensors
+    def get_signals(self):
+        """Return a list of signal names currently selected for logging."""
+        signals = []
+        for index in range(self.signal_list_widget.count()):
+            signals.append(self.signal_list_widget.item(index).text())
+        return signals
 
 
 def toggle_logging(logger_widget):
@@ -91,7 +91,7 @@ def toggle_logging(logger_widget):
     
     Uses the logger_widget (an instance of CSVLoggerWidget) to get:
       - The log_button for updating text and style.
-      - The list of sensor names via logger_widget.get_sensors().
+      - The list of signal names via logger_widget.get_signals().
     """
     global logging_active, logging_start_time, logging_vars, csv_file, csv_writer
     if not logging_active:
@@ -106,14 +106,14 @@ def toggle_logging(logger_widget):
             QtWidgets.QMessageBox.critical(None, "Error", f"Could not open file:\n{e}")
             return
         csv_writer = csv.writer(csv_file)
-        # Retrieve sensor keys from the logger widget's sensor list.
-        logging_vars = logger_widget.get_sensors()
+        # Retrieve signal keys from the logger widget's signal list.
+        logging_vars = logger_widget.get_signals()
         
-        # If no variables are selected, log only time.
+        # If no signals are selected, log only time.
         if not logging_vars:
             logging_vars = []  # Empty list to indicate only time will be logged
         
-        # Write header with time and the selected sensor keys (if any).
+        # Write header with time and the selected signal keys (if any).
         header = ["t"] + logging_vars
         csv_writer.writerow(header)
         csv_file.flush()
@@ -140,14 +140,14 @@ def log_data(data_history):
         row = [t_ms]
         
         if logging_vars:
-            for sensor in logging_vars:
-                # Write the latest value for each sensor (or an empty string if no data).
+            for signal in logging_vars:
+                # Write the latest value for each signal (or an empty string if no data).
 
                 #each data_history element contains the value and timestamp, so we only need the value to be logged
-                row.append(data_history[sensor][-1][0] if data_history[sensor] else "")
+                row.append(data_history[signal][-1][0] if data_history[signal] else "")
                 
         else:
-            # If no variables are selected, log only time.
+            # If no signals are selected, log only time.
             row.append("")
         # Write the row to the CSV file.
         csv_writer.writerow(row)
@@ -173,14 +173,14 @@ def load_log(data_history):
         header = next(reader, None)
         if not header:
             return
-        sensors = header[1:]
-        for sensor in sensors:
-            data_history[sensor] = []
+        signals = header[1:]
+        for signal in signals:
+            data_history[signal] = []
         for row in reader:
             t_val = float(row[0]) if row[0] else 0
-            for i, sensor in enumerate(sensors, start=1):
+            for i, signal in enumerate(signals, start=1):
                 val = float(row[i]) if row[i] else 0
-                data_history[sensor].append((val, t_val))
+                data_history[signal].append((val, t_val))
     # Immediately update plots if an update callback is set as a property on the application
     update_plots_cb = QtWidgets.QApplication.instance().property("update_plots")
     if callable(update_plots_cb):

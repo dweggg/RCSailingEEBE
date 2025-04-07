@@ -13,7 +13,7 @@ class CommProtocol:
     def is_connected(self):
         raise NotImplementedError
 
-    def send_sensor(self, sensor, value):
+    def send_signal(self, signal, value):
         raise NotImplementedError
 
     def start_reader(self):
@@ -68,11 +68,11 @@ class SerialComm(CommProtocol):
     def is_connected(self):
         return self.ser is not None and self.ser.is_open
 
-    def send_sensor(self, sensor, value):
+    def send_signal(self, signal, value):
         if not isinstance(value, (int, float)):
             raise ValueError("Value must be a number.")
         if self.ser and self.ser.is_open:
-            message = f"{sensor}:{value:.2f}\r\n"
+            message = f"{signal}:{value:.2f}\r\n"
             try:
                 self.ser.write(message.encode("utf-8"))
                 self.ser.flush()

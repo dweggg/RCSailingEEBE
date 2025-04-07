@@ -1,12 +1,10 @@
-import numpy as np
 import pyqtgraph as pg
 from PyQt6 import QtWidgets, QtCore
-from variables import *         # Expects functions like get_sensor_name and get_sensor_direction
+from signals import get_signal_name, get_signal_direction  # Import only the required functions
 from focus import FocusManager  # Expects a FocusManager class
-from uart import send_sensor
+from uart import send_signal
 from data import data_history, start_time
 import time
-import bisect
 from comm import comm
 
 class DynamicPlot(QtWidgets.QWidget):
@@ -18,7 +16,7 @@ class DynamicPlot(QtWidgets.QWidget):
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                            QtWidgets.QSizePolicy.Policy.Expanding)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-        self.sensor_keys_assigned = []  
+        self.signal_keys_assigned = []  
         self.curves = {}
         self.display_text_size = 24  # Moved assignment before init_ui()
         self.init_ui()
@@ -28,14 +26,14 @@ class DynamicPlot(QtWidgets.QWidget):
         self.mode = "plot"  
 
         # Persistent widgets for display mode:
-        # For TX sensors, a container with a sensor name label and an editable QLineEdit.
+        # For TX signals, a container with a signal name label and an editable QLineEdit.
         self.tx_widgets = {}
-        # For RX sensors, a container with a sensor name label and a read-only QLineEdit.
+        # For RX signals, a container with a signal name label and a read-only QLineEdit.
         self.rx_widgets = {}
-        # To store the last sent value for TX sensors.
+        # To store the last sent value for TX signals.
         self.last_tx_values = {}
 
-        self.sensor_colors = {}  # New dictionary to map sensor to color.
+        self.signal_colors = {}  # New dictionary to map signal to color.
 
     def init_ui(self):
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -105,7 +103,7 @@ class DynamicPlot(QtWidgets.QWidget):
         self.text_size_edit.setText(str(self.display_text_size))
         self.text_size_edit.editingFinished.connect(self.process_text_size_edit)
         
-        # Sub-layout for sensor display widgets.
+        # Sub-layout for signal display widgets.
         self.widget_display_layout = QtWidgets.QVBoxLayout()
         self.display_container_layout.addLayout(self.widget_display_layout)
         
@@ -153,52 +151,52 @@ class DynamicPlot(QtWidgets.QWidget):
                                      self.display_container.height() - self.text_size_edit.height() - margin)
             self.text_size_edit.raise_()
 
-    def add_sensor(self, sensor):
+    def add_signal(self, signal):
 
         if self.mode != "xy":
-            """Adds a new sensor stream to the plot if not already present."""
-            if sensor in self.sensor_keys_assigned:
+            """Adds a new signal stream to the plot if not already present."""
+            if signal in self.signal_keys_assigned:
                 return  
             
-            self.sensor_keys_assigned.append(sensor)
-            color = self.get_color(sensor)
-            curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=sensor)
-            self.curves[sensor] = curve
+            self.signal_keys_assigned.append(signal)
+            color = self.get_color(signal)
+            curve = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=signal)
+            self.curves[signal] = curve
 
             # If in display mode, add the corresponding display widget.
             if self.mode == "display":
-                self.add_display_widget(sensor)
+                self.add_display_widget(signal)
 
-    def add_display_widget(self, sensor):
-        """Add a display widget for a newly added sensor based on its direction."""
-        if get_sensor_direction(sensor) == 'TX':
-            if sensor not in self.tx_widgets:
+    def add_display_widget(self, signal):
+        """Add a display widget for a newly added signal based on its direction."""
+        if get_signal_direction(signal) == 'TX':
+            if signal not in self.tx_widgets:
                 container = QtWidgets.QWidget()
                 container.setStyleSheet("border: none;")
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
-                name_label = QtWidgets.QLabel(get_sensor_name(sensor) + ": ")
+                name_label = QtWidgets.QLabel(get_signal_name(signal) + ": ")
                 name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(name_label)
                 
                 editable_input = QtWidgets.QLineEdit()
-                editable_input.setPlaceholderText(f"Enter {sensor} value...")
+                editable_input.setPlaceholderText(f"Enter {signal} value...")
                 editable_input.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 editable_input.returnPressed.connect(
-                    lambda sensor=sensor, input_field=editable_input: self.on_return_pressed(sensor, input_field)
+                    lambda signal=signal, input_field=editable_input: self.on_return_pressed(signal, input_field)
                 )
                 h_layout.addWidget(editable_input)
-                self.tx_widgets[sensor] = (container, name_label, editable_input)
+                self.tx_widgets[signal] = (container, name_label, editable_input)
                 self.widget_display_layout.addWidget(container)  # Use new sub-layout.
         else:
-            if sensor not in self.rx_widgets:
+            if signal not in self.rx_widgets:
                 container = QtWidgets.QWidget()
                 container.setStyleSheet("border: none;")
                 h_layout = QtWidgets.QHBoxLayout(container)
                 h_layout.setContentsMargins(0, 0, 0, 0)
                 
-                name_label = QtWidgets.QLabel(get_sensor_name(sensor) + ": ")
+                name_label = QtWidgets.QLabel(get_signal_name(signal) + ": ")
                 name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(name_label)
                 
@@ -206,27 +204,27 @@ class DynamicPlot(QtWidgets.QWidget):
                 output_field.setReadOnly(True)
                 output_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
                 h_layout.addWidget(output_field)
-                self.rx_widgets[sensor] = (container, name_label, output_field)
+                self.rx_widgets[signal] = (container, name_label, output_field)
                 self.widget_display_layout.addWidget(container)
 
-    def remove_sensor(self, sensor):
-        """Removes an existing sensor stream from the plot."""
-        if sensor in self.sensor_keys_assigned:
-            self.sensor_keys_assigned.remove(sensor)
-            if sensor in self.curves:
-                curve = self.curves.pop(sensor)
+    def remove_signal(self, signal):
+        """Removes an existing signal stream from the plot."""
+        if signal in self.signal_keys_assigned:
+            self.signal_keys_assigned.remove(signal)
+            if signal in self.curves:
+                curve = self.curves.pop(signal)
                 self.plot.removeItem(curve)
 
             # Remove display widgets.
-            if sensor in self.tx_widgets:
-                widget = self.tx_widgets.pop(sensor)[0]
+            if signal in self.tx_widgets:
+                widget = self.tx_widgets.pop(signal)[0]
                 widget.deleteLater()
-            if sensor in self.rx_widgets:
-                widget = self.rx_widgets.pop(sensor)[0]
+            if signal in self.rx_widgets:
+                widget = self.rx_widgets.pop(signal)[0]
                 widget.deleteLater()
 
     def update_legend(self):
-        """Updates the legend based on the current sensor streams,
+        """Updates the legend based on the current signal streams,
            but only updates once per second.
         """
         current_time = time.time() - start_time
@@ -246,30 +244,30 @@ class DynamicPlot(QtWidgets.QWidget):
             self.legend.anchor = (0, 0)
         self.legend.clear()
 
-        # In 'plot' mode, show the sensor name with the 1s datarate.
+        # In 'plot' mode, show the signal name with the 1s datarate.
         if self.mode == "plot":
-            for sensor in self.sensor_keys_assigned:
-                if sensor in self.curves:
-                    sensor_data = data_history.get(sensor, [])
+            for signal in self.signal_keys_assigned:
+                if signal in self.curves:
+                    signal_data = data_history.get(signal, [])
                     count = 0
                     # Iterate backward; stop once data is older than 1 second.
-                    for _, t in reversed(sensor_data):
+                    for _, t in reversed(signal_data):
                         if t >= current_time - 1:
                             count += 1
                         else:
                             break
-                    label = f"{get_sensor_name(sensor)} ({count} Hz)"
-                    self.legend.addItem(self.curves[sensor], label)
+                    label = f"{get_signal_name(signal)} ({count} Hz)"
+                    self.legend.addItem(self.curves[signal], label)
         else:
-            # In other modes, simply display the sensor name.
-            for sensor in self.sensor_keys_assigned:
-                if sensor in self.curves:
-                    self.legend.addItem(self.curves[sensor], get_sensor_name(sensor))
+            # In other modes, simply display the signal name.
+            for signal in self.signal_keys_assigned:
+                if signal in self.curves:
+                    self.legend.addItem(self.curves[signal], get_signal_name(signal))
 
-    def get_color(self, sensor):
-        """Return a color for the sensor. If not assigned, generate and store a new color."""
-        if sensor in self.sensor_colors:
-            return self.sensor_colors[sensor]
+    def get_color(self, signal):
+        """Return a color for the signal. If not assigned, generate and store a new color."""
+        if signal in self.signal_colors:
+            return self.signal_colors[signal]
 
         # Predefined base colors.
         base_colors = [
@@ -282,14 +280,14 @@ class DynamicPlot(QtWidgets.QWidget):
             (255, 192, 203)
         ]
 
-        if len(self.sensor_colors) < len(base_colors):
-            new_color = base_colors[len(self.sensor_colors)]
+        if len(self.signal_colors) < len(base_colors):
+            new_color = base_colors[len(self.signal_colors)]
         else:
             # Generate a new color dynamically using HSV.
-            hue = (len(self.sensor_colors) * 37) % 360
+            hue = (len(self.signal_colors) * 37) % 360
             hsv_color = pg.hsvColor(hue / 360.0, 1.0, 1.0)
             new_color = hsv_color.getRgb()[:3]
-        self.sensor_colors[sensor] = new_color
+        self.signal_colors[signal] = new_color
         return new_color
             
     def update_plot(self, data_history=data_history):
@@ -305,23 +303,23 @@ class DynamicPlot(QtWidgets.QWidget):
         self.update_legend()
         current_time = time.time() - start_time
 
-        for sensor in self.sensor_keys_assigned:
-            sensor_data = data_history.get(sensor)
-            if sensor_data:
+        for signal in self.signal_keys_assigned:
+            signal_data = data_history.get(signal)
+            if signal_data:
                 # Append a new entry if the last update is older than 500ms.
-                last_value, last_timestamp = sensor_data[-1]
+                last_value, last_timestamp = signal_data[-1]
                 if current_time - last_timestamp >= 0.5:
-                    sensor_data.append((last_value, current_time))
+                    signal_data.append((last_value, current_time))
 
                 # Instead of two list comprehensions, unpack once.
                 try:
-                    # sensor_data contains (value, timestamp) pairs.
-                    vals, ts = zip(*sensor_data)
+                    # signal_data contains (value, timestamp) pairs.
+                    vals, ts = zip(*signal_data)
                 except ValueError:
-                    # sensor_data is empty; skip updating.
+                    # signal_data is empty; skip updating.
                     continue
-                # Set data with times on the x-axis and sensor values on the y-axis.
-                self.curves[sensor].setData(list(ts), list(vals))
+                # Set data with times on the x-axis and signal values on the y-axis.
+                self.curves[signal].setData(list(ts), list(vals))
 
         try:
             time_window = float(self.time_window_edit.text())
@@ -334,20 +332,20 @@ class DynamicPlot(QtWidgets.QWidget):
             self.plot.enableAutoRange(axis='x')
 
     def update_xy_plot(self):
-        """Updates the XY plot using the first sensor as x-axis and the second as y-axis."""
-        if len(self.sensor_keys_assigned) < 2:
+        """Updates the XY plot using the first signal as x-axis and the second as y-axis."""
+        if len(self.signal_keys_assigned) < 2:
             return
         
-        x_sensor = self.sensor_keys_assigned[0]
-        y_sensor = self.sensor_keys_assigned[1]
+        x_signal = self.signal_keys_assigned[0]
+        y_signal = self.signal_keys_assigned[1]
         current_time = time.time() - start_time
         try:
             time_window = float(self.time_window_edit.text())
         except ValueError:
             time_window = 0
 
-        x_data = data_history.get(x_sensor, [])
-        y_data = data_history.get(y_sensor, [])
+        x_data = data_history.get(x_signal, [])
+        y_data = data_history.get(y_signal, [])
         
         if time_window > 0:
             x_data = [entry for entry in x_data if entry[1] >= current_time - time_window]
@@ -365,34 +363,32 @@ class DynamicPlot(QtWidgets.QWidget):
         else:
             self.xy_curve = self.plot.plot(x_vals, y_vals, pen=pg.mkPen(width=2), name="")
         
-        if hasattr(self, "xy_marker"):
-            self.xy_marker.setData([x_vals[-1]], [y_vals[-1]])
-        else:
+        if not hasattr(self, "xy_marker"):
             self.xy_marker = pg.ScatterPlotItem(
                 size=10, 
                 pen=pg.mkPen(None), 
                 brush=pg.mkBrush('r')
             )
-            self.xy_marker.setData([x_vals[-1]], [y_vals[-1]])
             self.plot.addItem(self.xy_marker)
+        self.xy_marker.setData([x_vals[-1]], [y_vals[-1]])
         
-        self.plot.setLabel('bottom', get_sensor_name(x_sensor))
-        self.plot.setLabel('left', get_sensor_name(y_sensor))
+        self.plot.setLabel('bottom', get_signal_name(x_signal))
+        self.plot.setLabel('left', get_signal_name(y_signal))
 
     def update_display_widgets(self, data_history):
-        """Update display widget text for each sensor."""
-        for sensor in self.sensor_keys_assigned:
+        """Update display widget text for each signal."""
+        for signal in self.signal_keys_assigned:
             value = None
-            if sensor in data_history and data_history[sensor]:
-                value = data_history[sensor][-1][0]
+            if signal in data_history and data_history[signal]:
+                value = data_history[signal][-1][0]
             
-            if get_sensor_direction(sensor) == 'TX':
-                current_value = self.last_tx_values.get(sensor, value)
-                container, name_label, input_field = self.tx_widgets[sensor]
+            if get_signal_direction(signal) == 'TX':
+                current_value = self.last_tx_values.get(signal, value)
+                container, name_label, input_field = self.tx_widgets[signal]
                 if not input_field.hasFocus():
                     input_field.setText(str(current_value) if current_value is not None else "")
             else:
-                container, name_label, output_field = self.rx_widgets[sensor]
+                container, name_label, output_field = self.rx_widgets[signal]
                 output_field.setText(str(value) if value is not None else "No data available")
 
     def mousePressEvent(self, event):
@@ -414,7 +410,7 @@ class DynamicPlot(QtWidgets.QWidget):
             self.text_size_edit.raise_()
             self.populate_display_mode()
         elif self.mode == "display":
-            self._backup_sensor_keys = list(self.sensor_keys_assigned)
+            self._backup_signal_keys = list(self.signal_keys_assigned)
             self.mode = "xy"
             self.toggle_button.setText("XY")
             self.display_container.hide()
@@ -423,10 +419,10 @@ class DynamicPlot(QtWidgets.QWidget):
             self.plot.clear()
             # In xy mode we do not need a legend.
             self.curves = {}
-            if len(self._backup_sensor_keys) >= 2:
-                self.sensor_keys_assigned = self._backup_sensor_keys[:2]
+            if len(self._backup_signal_keys) >= 2:
+                self.signal_keys_assigned = self._backup_signal_keys[:2]
             else:
-                self.sensor_keys_assigned = self._backup_sensor_keys
+                self.signal_keys_assigned = self._backup_signal_keys
             if not hasattr(self, "xy_curve"):
                 self.xy_curve = self.plot.plot(pen=pg.mkPen(width=2), name="")
             self.update_xy_plot()
@@ -441,56 +437,56 @@ class DynamicPlot(QtWidgets.QWidget):
             if hasattr(self, "xy_marker"):
                 self.plot.removeItem(self.xy_marker)
                 del self.xy_marker
-            if hasattr(self, "_backup_sensor_keys"):
-                self.sensor_keys_assigned = self._backup_sensor_keys
-                del self._backup_sensor_keys
+            if hasattr(self, "_backup_signal_keys"):
+                self.signal_keys_assigned = self._backup_signal_keys
+                del self._backup_signal_keys
             # Clear the plot and reinitialize the legend.
             self.plot.clear()
             self.legend = self.plot.addLegend(offset=(10, 10))
             self.legend.anchor = (0, 0)
             self.curves = {}
-            for sensor in self.sensor_keys_assigned:
-                color = self.get_color(sensor)
-                self.curves[sensor] = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=get_sensor_name(sensor))
+            for signal in self.signal_keys_assigned:
+                color = self.get_color(signal)
+                self.curves[signal] = self.plot.plot(pen=pg.mkPen(color=color, width=2), name=get_signal_name(signal))
             self.plot.setLabel('bottom', "")
             self.plot.setLabel('left', "")
             self.update_plot()
 
     def populate_display_mode(self):
-        """(Re)populate the display layout with persistent widgets for each sensor."""
+        """(Re)populate the display layout with persistent widgets for each signal."""
         # Clear previous widgets.
         while self.widget_display_layout.count():
             item = self.widget_display_layout.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
-        for sensor in self.sensor_keys_assigned:
-            if get_sensor_direction(sensor) == 'TX':
-                if sensor not in self.tx_widgets:
-                    self.add_display_widget(sensor)
+        for signal in self.signal_keys_assigned:
+            if get_signal_direction(signal) == 'TX':
+                if signal not in self.tx_widgets:
+                    self.add_display_widget(signal)
                 else:
-                    self.widget_display_layout.addWidget(self.tx_widgets[sensor][0])
+                    self.widget_display_layout.addWidget(self.tx_widgets[signal][0])
             else:
-                if sensor not in self.rx_widgets:
-                    self.add_display_widget(sensor)
+                if signal not in self.rx_widgets:
+                    self.add_display_widget(signal)
                 else:
-                    self.widget_display_layout.addWidget(self.rx_widgets[sensor][0])
+                    self.widget_display_layout.addWidget(self.rx_widgets[signal][0])
         self.update_display_widgets(data_history)
 
-    def on_return_pressed(self, sensor, input_field):
+    def on_return_pressed(self, signal, input_field):
         """Handles Enter key press: converts text to float, updates data, and flashes the input field."""
         try:
             new_value = float(input_field.text())
         except ValueError:
             return
 
-        send_sensor(comm, sensor, new_value)
-        if sensor not in data_history:
-            data_history[sensor] = []
-        data_history[sensor].append((new_value, time.time() - start_time))
-        self.last_tx_values[sensor] = new_value
+        send_signal(comm, signal, new_value)
+        if signal not in data_history:
+            data_history[signal] = []
+        data_history[signal].append((new_value, time.time() - start_time))
+        self.last_tx_values[signal] = new_value
         input_field.setStyleSheet("background-color: green; font-size: 24px; font-weight: bold;")
         QtCore.QTimer.singleShot(150, lambda: input_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;"))
-        print(f"Updated {sensor} with value: {new_value}")
+        print(f"Updated {signal} with value: {new_value}")
 
     def clear_layout(self, layout):
         """Clear all items from the layout."""
@@ -504,7 +500,7 @@ class DynamicPlot(QtWidgets.QWidget):
         geom = self.geometry().getRect()
         state = {
             "geometry": {"x": geom[0], "y": geom[1], "width": geom[2], "height": geom[3]},
-            "sensor_keys": self.sensor_keys_assigned,
+            "signal_keys": self.signal_keys_assigned,
             "mode": self.mode
         }
         if self.mode == "display":
@@ -540,11 +536,11 @@ class DynamicPlot(QtWidgets.QWidget):
         """Update display text size and refresh styles for display widgets."""
         self.display_text_size = new_size
         # Update TX widgets.
-        for sensor, (container, name_label, input_field) in self.tx_widgets.items():
+        for signal, (container, name_label, input_field) in self.tx_widgets.items():
             name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
             input_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
         # Update RX widgets.
-        for sensor, (container, name_label, output_field) in self.rx_widgets.items():
+        for signal, (container, name_label, output_field) in self.rx_widgets.items():
             name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
             output_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
 
