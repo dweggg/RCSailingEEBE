@@ -31,7 +31,7 @@ static ControlMode_t currentMode = MODE_DIRECT_INPUT;
 /* --- CONTROLLER GAINS --- */
 // Renamed PI gains for roll control.
 static float Kp_roll = 1.0F, Ki_roll = 0.1F;
-// New PI gains reserved for yaw rate control (not yet implemented).
+// New PI gains reserved for yaw rate control.
 static float Kp_yaw = 1.0F, Ki_yaw = 0.1F;
 
 // --- DIRECT INPUT CONTROL ---
