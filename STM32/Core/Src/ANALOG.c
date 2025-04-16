@@ -16,7 +16,7 @@ volatile uint16_t adc_raw_readings[4];
 float windDirectionGain = 1.0f;
 float windDirectionOffset = 0.0f;
 
-float batteryVoltageGain = 0.00355F; //1.0F/((68.0F/(220.0F+68.0F)) * (4096.0F/3.3F)) gives 0.034 aprox and its a bit more
+float batteryVoltageGain = 0.00333F; //1.0F/((68.0F/(220.0F+68.0F)) * (4096.0F/3.3F)) gives 0.034 aprox and its a bit less than that
 float batteryVoltageOffset = 0.0f;
 
 float extra1Gain = 1.0f;

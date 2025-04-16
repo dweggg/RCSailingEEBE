@@ -13,40 +13,41 @@
 #include "cmsis_os.h"
 
 #define MIN_VALID_PULSE_US 100
+#define MAX_VALID_PULSE_US 3000
 
 // Initialize raw radio data.
 RadioData_t radioDataSent = {0};
 
 // Initialize calibration boundaries to extreme values.
 RadioCalibration_t radioCalibration = {
-    .ch1_min = 0xFFFFFFFF, .ch1_max = 0,
-    .ch2_min = 0xFFFFFFFF, .ch2_max = 0,
-    .ch3_min = 0xFFFFFFFF, .ch3_max = 0,
+    .ch1_min = 1228, .ch1_max = 1726,
+    .ch2_min = 1227, .ch2_max = 1722,
+    .ch3_min = 981, .ch3_max = 1973,
     .ch4_min = 0xFFFFFFFF, .ch4_max = 0
 };
 
 // Updates calibration boundaries for each channel.
 // In Calibration Mode, this function should be called repeatedly.
 void update_radio_calibration(void) {
-    if (radioDataSent.ch1 > MIN_VALID_PULSE_US) {
+    if (radioDataSent.ch1 > MIN_VALID_PULSE_US && radioDataSent.ch1 < MAX_VALID_PULSE_US) {
         if (radioDataSent.ch1 < radioCalibration.ch1_min)
             radioCalibration.ch1_min = radioDataSent.ch1;
         if (radioDataSent.ch1 > radioCalibration.ch1_max)
             radioCalibration.ch1_max = radioDataSent.ch1;
     }
-    if (radioDataSent.ch2 > MIN_VALID_PULSE_US) {
+    if (radioDataSent.ch2 > MIN_VALID_PULSE_US && radioDataSent.ch2 < MAX_VALID_PULSE_US) {
         if (radioDataSent.ch2 < radioCalibration.ch2_min)
             radioCalibration.ch2_min = radioDataSent.ch2;
         if (radioDataSent.ch2 > radioCalibration.ch2_max)
             radioCalibration.ch2_max = radioDataSent.ch2;
     }
-    if (radioDataSent.ch3 > MIN_VALID_PULSE_US) {
+    if (radioDataSent.ch3 > MIN_VALID_PULSE_US && radioDataSent.ch3 < MAX_VALID_PULSE_US) {
         if (radioDataSent.ch3 < radioCalibration.ch3_min)
             radioCalibration.ch3_min = radioDataSent.ch3;
         if (radioDataSent.ch3 > radioCalibration.ch3_max)
             radioCalibration.ch3_max = radioDataSent.ch3;
     }
-    if (radioDataSent.ch4 > MIN_VALID_PULSE_US) {
+    if (radioDataSent.ch3 > MIN_VALID_PULSE_US && radioDataSent.ch3 < MAX_VALID_PULSE_US) {
         if (radioDataSent.ch4 < radioCalibration.ch4_min)
             radioCalibration.ch4_min = radioDataSent.ch4;
         if (radioDataSent.ch4 > radioCalibration.ch4_max)
@@ -105,13 +106,12 @@ volatile int16_t pulseWidth_CH4 = 0;
 /* Helper function to send updated data to the queue */
 static void SendRadioData(void)
 {
-    RadioData_t radioData;
-    radioData.ch1 = pulseWidth_CH1;
-    radioData.ch2 = pulseWidth_CH2;
-    radioData.ch3 = pulseWidth_CH3;
-    radioData.ch4 = pulseWidth_CH4;
+	radioDataSent.ch1 = pulseWidth_CH1;
+	radioDataSent.ch2 = pulseWidth_CH2;
+	radioDataSent.ch3 = pulseWidth_CH3;
+	radioDataSent.ch4 = pulseWidth_CH4;
     /* Non-blocking put into the queue */
-    osMessageQueuePut(radioQueueHandle, &radioData, 0, 0);
+    osMessageQueuePut(radioQueueHandle, &radioDataSent, 0, 0);
 }
 
 /* Input capture callback handling all four channels */
@@ -140,8 +140,11 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
                 ic1_rising = 1;
                 /* Switch back to rising edge capture */
                 __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-                /* Send updated data */
-                SendRadioData();
+                /* Check if pulse width is valid before sending data */
+                if ((pulseWidth_CH1 >= MIN_VALID_PULSE_US) && (pulseWidth_CH1 <= MAX_VALID_PULSE_US))
+                {
+                    SendRadioData();
+                }
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
@@ -162,7 +165,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
                     pulseWidth_CH2 = (htim->Init.Period - ic2_rising_val) + falling_val + 1;
                 ic2_rising = 1;
                 __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
-                SendRadioData();
+                if ((pulseWidth_CH2 >= MIN_VALID_PULSE_US) && (pulseWidth_CH2 <= MAX_VALID_PULSE_US))
+                {
+                    SendRadioData();
+                }
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
@@ -183,7 +189,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
                     pulseWidth_CH3 = (htim->Init.Period - ic3_rising_val) + falling_val + 1;
                 ic3_rising = 1;
                 __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_3, TIM_INPUTCHANNELPOLARITY_RISING);
-                SendRadioData();
+                if ((pulseWidth_CH3 >= MIN_VALID_PULSE_US) && (pulseWidth_CH3 <= MAX_VALID_PULSE_US))
+                {
+                    SendRadioData();
+                }
             }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
@@ -204,7 +213,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
                     pulseWidth_CH4 = (htim->Init.Period - ic4_rising_val) + falling_val + 1;
                 ic4_rising = 1;
                 __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_4, TIM_INPUTCHANNELPOLARITY_RISING);
-                SendRadioData();
+                if ((pulseWidth_CH4 >= MIN_VALID_PULSE_US) && (pulseWidth_CH4 <= MAX_VALID_PULSE_US))
+                {
+                    SendRadioData();
+                }
             }
         }
     }

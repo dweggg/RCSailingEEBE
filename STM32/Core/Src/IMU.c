@@ -31,7 +31,7 @@ float alphaAccel = 0.9;
 void imu_read(void) {
 
     if (!imu_initialized) {
-    	osDelay(100);
+    	osDelay(1000);
         // Initialize the sensor
         imu_error = bno055_init(&bno);
         if (imu_error == BNO_OK) {imu_initialized = 1;}

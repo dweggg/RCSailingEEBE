@@ -65,6 +65,19 @@ static void telemetry_start_rx_dma(void) {
 // Temporary buffer for complete messages
 #define TEMP_BUFFER_SIZE 64
 
+TelemetryData_t telemetryData = {
+    .mode = MODE_DIRECT_INPUT,
+    .rudder_servo_angle = 0.0f,
+    .trim_servo_angle = 0.0f,
+    .twist_servo_angle = 0.0f,
+    .extra_servo_angle = 0.0f,
+
+    .Kp_roll = 1.0f,
+    .Ki_roll = 0.1f,
+    .Kp_yaw  = 1.0f,
+    .Ki_yaw  = 1.0f
+};
+
 bool telemetry_receive(const char *key, float *value) {
     static uint16_t last_read_index = 0;
     static char tempBuffer[TEMP_BUFFER_SIZE];
@@ -220,11 +233,38 @@ void telemetry(void) {
         }
     }
 
+
+    float value = 0.0f;
+
     // Process any received mode change.
-    float modeValue = 0.0f;
-    if (telemetry_receive("MOD", &modeValue)) {
-        TelemetryData_t telemetryData;
-        telemetryData.mode = (ControlMode_t)(int)modeValue;
-        osMessageQueuePut(telemetryQueueHandle, (void *)&telemetryData, 0, 0);
+    if (telemetry_receive("MOD", &value)) {
+        telemetryData.mode = (ControlMode_t)(int)value;
     }
+    if (telemetry_receive("SRU", &value)) {
+        telemetryData.rudder_servo_angle = value;
+    }
+    if (telemetry_receive("STR", &value)) {
+        telemetryData.trim_servo_angle = value;
+    }
+    if (telemetry_receive("STW", &value)) {
+        telemetryData.twist_servo_angle = value;
+    }
+    if (telemetry_receive("SEX", &value)) {
+        telemetryData.extra_servo_angle = value;
+    }
+    if (telemetry_receive("KPR", &value)) {
+        telemetryData.Kp_roll = value;
+    }
+    if (telemetry_receive("KIR", &value)) {
+        telemetryData.Ki_roll = value;
+    }
+    if (telemetry_receive("KPY", &value)) {
+        telemetryData.Kp_yaw = value;
+    }
+    if (telemetry_receive("KIY", &value)) {
+        telemetryData.Ki_yaw = value;
+    }
+
+    // Send the updated telemetry data to the queue
+    osMessageQueuePut(telemetryQueueHandle, (void *)&telemetryData, 0, 0);
 }
