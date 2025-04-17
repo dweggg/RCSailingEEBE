@@ -57,7 +57,21 @@ void update_radio_calibration(void) {
 
 // Helper function to map a raw channel value to 0.0–1.0.
 static float normalize(uint32_t value, uint32_t min, uint32_t max) {
-    if (max <= min) return 0.0F;
+    // Protect against divide‑by‑zero / invalid range
+    if (max <= min) {
+        return 0.0f;
+    }
+
+    // Clamp below the minimum
+    if (value <= min) {
+        return 0.0f;
+    }
+
+    // Clamp above the maximum
+    if (value >= max) {
+        return 1.0f;
+    }
+
     return ((float)(value - min)) / (max - min);
 }
 

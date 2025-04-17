@@ -41,7 +41,7 @@ def send_signal(comm, signal, value):
     if not isinstance(value, (int, float)):
         raise ValueError("Value must be a number.")
     if comm.ser and comm.ser.is_open:
-        message = f"{signal}:{value:.2f}\r\n"
+        message = f"{signal}:{value:.6f}\r\n"
         try:
             comm.ser.write(message.encode("utf-8"))
             comm.ser.flush()

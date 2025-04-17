@@ -30,6 +30,15 @@
 
         {"key": "CPU", "dir": "RX", "name": "CPU [%]"},
 
-        {"key": "MOD", "dir": "TX", "name": "Mode"}
+        {"key": "MOD", "dir": "TX", "name": "Mode"},
+        {"key": "SRU", "dir": "TX", "name": "Servo Rudder Angle [deg]"},
+        {"key": "STR", "dir": "TX", "name": "Servo Trim Angle [deg]"},
+        {"key": "STW", "dir": "TX", "name": "Servo Twist Angle [deg]"},
+        {"key": "SEX", "dir": "TX", "name": "Servo Extra Angle [deg]"},
+        {"key": "KPR", "dir": "TX", "name": "Roll Kp"},
+        {"key": "KIR", "dir": "TX", "name": "Roll Ki"},
+        {"key": "KPY", "dir": "TX", "name": "Yaw Kp"},
+        {"key": "KIY", "dir": "TX", "name": "Yaw Ki"}
+
     ]
 }

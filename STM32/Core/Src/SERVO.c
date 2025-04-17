@@ -16,11 +16,6 @@
 #define TIMER_PERIOD          59999.0F
 #define TIMER_FREQ            20.0F  // in ms
 
-// Helper: linearly map x from [in_min, in_max] to [out_min, out_max].
-static float map(float x, float in_min, float in_max, float out_min, float out_max) {
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
 // Helper: saturate value between min and max.
 static float saturate(float x, float min, float max) {
     if (x < min)
@@ -28,6 +23,15 @@ static float saturate(float x, float min, float max) {
     if (x > max)
         return max;
     return x;
+}
+
+// Helper: linearly map x from [in_min, in_max] to [out_min, out_max].
+static float map(float x, float in_min, float in_max, float out_min, float out_max) {
+	x = saturate(x, in_min, in_max);
+	float out;
+	out =  (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+	out = saturate(out, out_min, out_max);
+	return out;
 }
 
 // Now the conversion function maps a servo angle (in degrees, from 0 to servo_range)
@@ -108,29 +112,50 @@ float mech_to_servo_extra(float mech_angle) {
  * Servo command functions: each one gets a desired mechanical angle,
  * converts it to a calibrated servo angle (in [0, servo_range]), and then sets the servo output.
  */
-void set_servo_rudder(float mech_angle) {
+void set_rudder(float mech_angle) {
     float servo_angle = mech_to_servo_rudder(mech_angle);
     uint32_t pulse = servo_angle_to_pulse(servo_angle, RUDDER_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, RUDDER_CHANNEL, pulse);
 }
 
-void set_servo_trim(float mech_angle) {
+void set_trim(float mech_angle) {
     float servo_angle = mech_to_servo_trim(mech_angle);
     uint32_t pulse = servo_angle_to_pulse(servo_angle, TRIM_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, TRIM_CHANNEL, pulse);
 }
 
-void set_servo_twist(float mech_angle) {
+void set_twist(float mech_angle) {
     float servo_angle = mech_to_servo_twist(mech_angle);
     uint32_t pulse = servo_angle_to_pulse(servo_angle, TWIST_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, TWIST_CHANNEL, pulse);
 }
 
-void set_servo_extra(float mech_angle) {
+void set_extra(float mech_angle) {
     float servo_angle = mech_to_servo_extra(mech_angle);
     uint32_t pulse = servo_angle_to_pulse(servo_angle, EXTRA_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, EXTRA_CHANNEL, pulse);
 }
+
+void set_servo_rudder(float servo_angle) {
+    uint32_t pulse = servo_angle_to_pulse(servo_angle, RUDDER_SERVO_RANGE);
+    __HAL_TIM_SET_COMPARE(&htim4, RUDDER_CHANNEL, pulse);
+}
+
+void set_servo_trim(float servo_angle) {
+    uint32_t pulse = servo_angle_to_pulse(servo_angle, TRIM_SERVO_RANGE);
+    __HAL_TIM_SET_COMPARE(&htim4, TRIM_CHANNEL, pulse);
+}
+
+void set_servo_twist(float servo_angle) {
+    uint32_t pulse = servo_angle_to_pulse(servo_angle, TWIST_SERVO_RANGE);
+    __HAL_TIM_SET_COMPARE(&htim4, TWIST_CHANNEL, pulse);
+}
+
+void set_servo_extra(float servo_angle) {
+    uint32_t pulse = servo_angle_to_pulse(servo_angle, EXTRA_SERVO_RANGE);
+    __HAL_TIM_SET_COMPARE(&htim4, EXTRA_CHANNEL, pulse);
+}
+
 
 void disable_all_servos(void) {
     // Set compare values to 0 to stop PWM on all servo channels, making them freewheel.

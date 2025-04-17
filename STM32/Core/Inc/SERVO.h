@@ -20,11 +20,11 @@
 #define RUDDER_MIN_ANGLE    -35.0F
 #define RUDDER_MAX_ANGLE    35.0F
 
-#define TRIM_MIN_ANGLE      -180.0F
-#define TRIM_MAX_ANGLE      180.0F
+#define TRIM_MIN_ANGLE      -90.0F
+#define TRIM_MAX_ANGLE      90.0F
 
 #define TWIST_MIN_ANGLE     0.0F
-#define TWIST_MAX_ANGLE     45.0F
+#define TWIST_MAX_ANGLE     30.0F
 
 #define EXTRA_MIN_ANGLE     0.0F
 #define EXTRA_MAX_ANGLE     180.0F
@@ -35,11 +35,19 @@
 #define TWIST_SERVO_RANGE     180.0F
 #define EXTRA_SERVO_RANGE     180.0F
 
-// Functions that actually command the servo outputs.
-void set_servo_rudder(float mech_angle);
-void set_servo_trim(float mech_angle);
-void set_servo_twist(float mech_angle);
-void set_servo_extra(float mech_angle);
+// Functions that command the mechanical outputs.
+void set_rudder(float mech_angle);
+void set_trim(float mech_angle);
+void set_twist(float mech_angle);
+void set_extra(float mech_angle);
+
+
+// Functions that command the servo outputs.
+void set_servo_rudder(float servo_angle);
+void set_servo_trim(float servo_angle);
+void set_servo_twist(float servo_angle);
+void set_servo_extra(float servo_angle);
+
 
 void disable_all_servos(void);
 
