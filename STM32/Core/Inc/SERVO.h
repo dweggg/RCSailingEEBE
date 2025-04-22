@@ -20,7 +20,7 @@
 #define RUDDER_MIN_ANGLE    -35.0F
 #define RUDDER_MAX_ANGLE    35.0F
 
-#define TRIM_MIN_ANGLE      -90.0F
+#define TRIM_MIN_ANGLE      0.0F
 #define TRIM_MAX_ANGLE      90.0F
 
 #define TWIST_MIN_ANGLE     0.0F

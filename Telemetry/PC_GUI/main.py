@@ -49,17 +49,42 @@ left_layout = QtWidgets.QVBoxLayout(left_widget)
 left_layout.setContentsMargins(5, 5, 5, 5)
 left_layout.setSpacing(5)
 
+
+
+class TerminalLogWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.text_edit = QtWidgets.QPlainTextEdit()
+        self.text_edit.setReadOnly(True)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.text_edit)
+
+    def write(self, msg):
+        # redirect both prints and errors
+        self.text_edit.appendPlainText(msg.rstrip())
+
+    def flush(self):
+        pass
+
+
+log_widget          = TerminalLogWidget()
 signals_list = SignalsList()
 left_layout.addWidget(signals_list)
 
 csv_logger_widget = CSVLoggerWidget()
 left_layout.addWidget(csv_logger_widget)
+# Add them with equal stretch so they each take 1/3 of the space
+left_layout.addWidget(log_widget,        1)
+left_layout.addWidget(signals_list,      1)
+left_layout.addWidget(csv_logger_widget, 1)
+
+# And then right after you show the window, redirect stdout/stderr
+sys.stdout = log_widget
+sys.stderr = log_widget
 
 # --- Middle Column: Plot Area (Tiling Area) ---
 tiling_area = TilingArea()
-
-# --- Right Column: 3D Model View (Initially Hidden) ---
-
 
 # --- Create Horizontal Splitter ---
 main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
