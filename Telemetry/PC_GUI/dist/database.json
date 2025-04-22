@@ -1,23 +1,44 @@
 {
     "signal_keys": [
-        {"key": "ACX", "dir": "RX", "name": "Accelerometer X"},
-        {"key": "ACY", "dir": "RX", "name": "Accelerometer Y"},
-        {"key": "ACZ", "dir": "RX", "name": "Accelerometer Z"},
-        {"key": "GYX", "dir": "RX", "name": "Gyroscope X"},
-        {"key": "GYY", "dir": "RX", "name": "Gyroscope Y"},
-        {"key": "GYZ", "dir": "RX", "name": "Gyroscope Z"},
-        {"key": "MGX", "dir": "RX", "name": "Magnetometer X"},
-        {"key": "MGY", "dir": "RX", "name": "Magnetometer Y"},
-        {"key": "MGZ", "dir": "RX", "name": "Magnetometer Z"},
-        {"key": "ROL", "dir": "RX", "name": "Roll"},
-        {"key": "PIT", "dir": "RX", "name": "Pitch"},
-        {"key": "YAW", "dir": "RX", "name": "Yaw"},
+        {"key": "ACX", "dir": "RX", "name": "Accel X [m/s^2]"},
+        {"key": "ACY", "dir": "RX", "name": "Accel Y [m/s^2]"},
+        {"key": "ACZ", "dir": "RX", "name": "Accel Z [m/s^2]"},
+        {"key": "GYX", "dir": "RX", "name": "Gyro X [rad/s]"},
+        {"key": "GYY", "dir": "RX", "name": "Gyro Y [rad/s]"},
+        {"key": "GYZ", "dir": "RX", "name": "Gyro Z [rad/s]"},
+        {"key": "MGX", "dir": "RX", "name": "Mag X [uT]"},
+        {"key": "MGY", "dir": "RX", "name": "Mag Y [uT]"},
+        {"key": "MGZ", "dir": "RX", "name": "Mag Z [uT]"},
+        {"key": "ROL", "dir": "RX", "name": "Roll [deg]"},
+        {"key": "PIT", "dir": "RX", "name": "Pitch [deg]"},
+        {"key": "YAW", "dir": "RX", "name": "Yaw [deg]"},
+        {"key": "SPE", "dir": "RX", "name": "Speed [m/s]"},
 
-        {"key": "DIR", "dir": "RX", "name": "Wind direction"},
-        {"key": "BAT", "dir": "RX", "name": "Battery voltage"},
+        {"key": "DIR", "dir": "RX", "name": "Wind Direction [deg]"},
+        {"key": "BAT", "dir": "RX", "name": "Battery Voltage [V]"},
         {"key": "EX1", "dir": "RX", "name": "Extra 1"},
         {"key": "EX2", "dir": "RX", "name": "Extra 2"},
-        
-        {"key": "MOD", "dir": "TX", "name": "Mode"}
+
+        {"key": "RW1", "dir": "RX", "name": "Radio CH1 [us]"},
+        {"key": "RW2", "dir": "RX", "name": "Radio CH2 [us]"},
+        {"key": "RW3", "dir": "RX", "name": "Radio CH3 [us]"},
+        {"key": "RW4", "dir": "RX", "name": "Radio CH4 [us]"},
+
+        {"key": "RUD", "dir": "RX", "name": "Rudder [deg]"},
+        {"key": "TWI", "dir": "RX", "name": "Twist [deg]"},
+        {"key": "TRI", "dir": "RX", "name": "Trim [deg]"},
+
+        {"key": "CPU", "dir": "RX", "name": "CPU [%]"},
+
+        {"key": "MOD", "dir": "TX", "name": "Mode"},
+        {"key": "SRU", "dir": "TX", "name": "Servo Rudder Angle [deg]"},
+        {"key": "STR", "dir": "TX", "name": "Servo Trim Angle [deg]"},
+        {"key": "STW", "dir": "TX", "name": "Servo Twist Angle [deg]"},
+        {"key": "SEX", "dir": "TX", "name": "Servo Extra Angle [deg]"},
+        {"key": "KPR", "dir": "TX", "name": "Roll Kp"},
+        {"key": "KIR", "dir": "TX", "name": "Roll Ki"},
+        {"key": "KPY", "dir": "TX", "name": "Yaw Kp"},
+        {"key": "KIY", "dir": "TX", "name": "Yaw Ki"}
+
     ]
 }
