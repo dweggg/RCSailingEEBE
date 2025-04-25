@@ -13,4 +13,4 @@ if sys.platform.startswith('linux'):
 BAUD_RATE = 115200
 UPDATE_INTERVAL_MS = 5      # Update interval in milliseconds
 PLOT_UPDATE_INTERVAL_MS = 30 # Plot update interval
-MAX_POINTS = 500             # Maximum data points to store per channel
+MAX_POINTS = 5000             # Maximum data points to store per channel

@@ -34,6 +34,16 @@ class DynamicPlot(QtWidgets.QWidget):
         self.last_tx_values = {}
 
         self.signal_colors = {}  # New dictionary to map signal to color.
+        
+        # Cursor-related attributes
+        self.cursors_active = False
+        self.cursor1 = None
+        self.cursor2 = None
+        self.cursor_info_label = None
+        self.cursor_link_combo = None
+        self.cursor_linked_signal = None
+        self.cursor1_rel_pos = 1/3
+        self.cursor2_rel_pos = 2/3
 
     def init_ui(self):
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -80,14 +90,15 @@ class DynamicPlot(QtWidgets.QWidget):
         self.toggle_button.setParent(self)
         self.toggle_button.move(self.width() - 70, 5)
 
-        # NEW: Cursor toggle button.
-        self.cursor_button = QtWidgets.QPushButton("C", self)
+        # Cursor toggle button
+        self.cursor_button = QtWidgets.QPushButton("C")
         self.cursor_button.setFixedSize(40, 20)
         self.cursor_button.setStyleSheet(
-            "background-color: rgba(0, 0, 255, 150); color: white; border-radius: 10px; font-weight: bold;"
+            "background-color: rgba(0, 120, 215, 150); color: white; border-radius: 10px; font-weight: bold;"
         )
-        self.cursor_button.move(self.width() - 120, 5)
         self.cursor_button.clicked.connect(self.toggle_cursors)
+        self.cursor_button.setParent(self)
+        self.cursor_button.move(self.width() - 115, 5)
 
         # Create display container with a top control for text size.
         self.display_container = QtWidgets.QWidget(self)
@@ -133,6 +144,10 @@ class DynamicPlot(QtWidgets.QWidget):
 
     def remove_self(self):
         """Safely remove itself from TilingArea."""
+        # Remove cursors if active
+        if self.cursors_active and self.cursor1 is not None:
+            self.remove_cursors()
+            
         if self.tiling_area:
             self.tiling_area.remove_plot(self)
 
@@ -141,14 +156,15 @@ class DynamicPlot(QtWidgets.QWidget):
         super().resizeEvent(event)
         self.remove_button.move(self.width() - 25, 5)
         self.toggle_button.move(self.width() - 70, 5)
-        self.cursor_button.move(self.width() - 120, 5)
+        self.cursor_button.move(self.width() - 115, 5)
+        
         # New: reposition time_window_edit and text_size_edit to bottom-right corners
         margin = 10
         self.time_window_edit.move(self.plot.width() - self.time_window_edit.width() - margin,
                                    self.plot.height() - self.time_window_edit.height() - margin)
         if self.display_container.isVisible():
             self.text_size_edit.move(self.display_container.width() - self.text_size_edit.width() - margin,
-                                     self.display_container.height() - self.text_size_edit.height() - margin)
+                                    self.display_container.height() - self.text_size_edit.height() - margin)
             self.text_size_edit.raise_()
 
     def add_signal(self, signal):
@@ -289,7 +305,18 @@ class DynamicPlot(QtWidgets.QWidget):
             new_color = hsv_color.getRgb()[:3]
         self.signal_colors[signal] = new_color
         return new_color
+        # Update cursor info label position if it exists
+        if self.cursor_info_label and self.cursor_info_label.isVisible():
+            self.cursor_info_label.move(10, 35)
+        
+        # Update cursor link combo position if it exists
+        if self.cursor_link_combo and self.cursor_link_combo.isVisible():
+            self.cursor_link_combo.move(10, 120)
             
+        # Update cursor positions to maintain their relative positions in the view
+        if self.cursors_active and self.cursor1 is not None and self.cursor1.isVisible():
+            self.update_cursor_positions()
+
     def update_plot(self, data_history=data_history):
         """Updates the plot based on the current mode."""
         if self.mode == "xy":
@@ -395,17 +422,24 @@ class DynamicPlot(QtWidgets.QWidget):
         FocusManager.set_active(self)
         self.selected_signal.emit(self)
         super().mousePressEvent(event)
+        # Update cursor information if cursors are active
+        if self.cursors_active and self.cursor1 is not None and self.cursor1.isVisible():
+            self.update_cursor_info()
 
     def toggle_mode(self):
         """Cycle through three modes: plot, display, and xy."""
         if self.mode == "plot":
+            # Hide cursor button and cursor elements when switching to other modes
+            self.cursor_button.hide()
+            if self.cursors_active:
+                self.hide_cursors()
+                
             self.mode = "display"
             self.toggle_button.setText("D")
             self.plot.hide()
             self.display_container.show()
             self.remove_button.raise_()
             self.toggle_button.raise_()
-            self.cursor_button.raise_()
             # New: bring text_size_edit to the front
             self.text_size_edit.raise_()
             self.populate_display_mode()
@@ -431,6 +465,9 @@ class DynamicPlot(QtWidgets.QWidget):
             self.toggle_button.setText("P")
             self.display_container.hide()
             self.plot.show()
+            # Show cursor button in plot mode
+            self.cursor_button.show()
+            
             if hasattr(self, "xy_curve"):
                 self.plot.removeItem(self.xy_curve)
                 del self.xy_curve
@@ -495,6 +532,13 @@ class DynamicPlot(QtWidgets.QWidget):
                 child = layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
+            
+            # Restore cursors if they were active before
+            if self.cursors_active and self.cursor1 is None:
+                self.initialize_cursors()
+            elif self.cursors_active and self.cursor1 is not None:
+                self.show_cursors()
+                QtCore.QTimer.singleShot(100, self.update_cursor_positions)  # Update positions after plot is visible
 
     def get_state(self):
         geom = self.geometry().getRect()
@@ -511,26 +555,257 @@ class DynamicPlot(QtWidgets.QWidget):
             except ValueError:
                 time_window = 0
             state["time_window"] = time_window
+            
+        # Add cursor state if active
+        if self.cursors_active and self.cursor1 is not None:
+            state["cursors_active"] = True
+            state["cursor1_rel_pos"] = self.cursor1_rel_pos
+            state["cursor2_rel_pos"] = self.cursor2_rel_pos
+            state["cursor_linked_signal"] = self.cursor_linked_signal
+        else:
+            state["cursors_active"] = False
+            
         return state
 
     def toggle_cursors(self):
+        """Toggle cursor visibility in plot mode."""
+        if self.mode != "plot":
+            return
+            
         self.cursors_active = not self.cursors_active
+        
         if self.cursors_active:
-            self.cursor1_v.show(); self.cursor1_h.show()
-            self.cursor2_v.show(); self.cursor2_h.show()
-            self.cursor_info.show()
-            # Set initial positions based on current view range.
-            x_bounds = self.plot.viewRange()[0]
-            y_bounds = self.plot.viewRange()[1]
-            self.cursor1_v.setValue(x_bounds[0])
-            self.cursor2_v.setValue(x_bounds[1])
-            self.cursor1_h.setValue(y_bounds[0])
-            self.cursor2_h.setValue(y_bounds[1])
-            self.update_cursor_info()
+            if self.cursor1 is None:
+                self.initialize_cursors()
+            else:
+                self.show_cursors()
+            # Update button appearance
+            self.cursor_button.setStyleSheet(
+                "background-color: rgba(0, 120, 215, 255); color: white; border-radius: 10px; font-weight: bold;"
+            )
         else:
-            self.cursor1_v.hide(); self.cursor1_h.hide()
-            self.cursor2_v.hide(); self.cursor2_h.hide()
-            self.cursor_info.hide()
+            self.hide_cursors()
+            # Update button appearance
+            self.cursor_button.setStyleSheet(
+                "background-color: rgba(0, 120, 215, 150); color: white; border-radius: 10px; font-weight: bold;"
+            )
+
+    def initialize_cursors(self):
+        """Create cursor lines and measurement display."""
+        # Create vertical cursor lines
+        self.cursor1 = pg.InfiniteLine(angle=90, movable=True, pen=pg.mkPen('r', width=2), label='C1')
+        self.cursor2 = pg.InfiniteLine(angle=90, movable=True, pen=pg.mkPen('b', width=2), label='C2')
+        
+        # Add cursor lines to plot
+        self.plot.addItem(self.cursor1)
+        self.plot.addItem(self.cursor2)
+        
+        # Position cursors at 1/3 and 2/3 of the visible range
+        x_range = self.plot.getViewBox().viewRange()[0]
+        x_span = x_range[1] - x_range[0]
+        self.cursor1.setValue(x_range[0] + x_span / 3)
+        self.cursor2.setValue(x_range[0] + 2 * x_span / 3)
+        
+        # Store the relative positions of the cursors in the view (0.0 to 1.0)
+        self.cursor1_rel_pos = 1/3
+        self.cursor2_rel_pos = 2/3
+        
+        # Create cursor info label with improved visibility
+        self.cursor_info_label = QtWidgets.QLabel(self)
+        self.cursor_info_label.setStyleSheet(
+            "background-color: rgba(30, 30, 30, 220); color: white; border: 1px solid #555; "
+            "border-radius: 5px; padding: 5px; font-weight: bold;"
+        )
+        self.cursor_info_label.move(10, 35)
+        self.cursor_info_label.setFixedWidth(200)
+        self.cursor_info_label.show()
+        
+        # Create cursor link combo box with improved visibility
+        self.cursor_link_combo = QtWidgets.QComboBox(self)
+        self.cursor_link_combo.setStyleSheet(
+            "background-color: rgba(30, 30, 30, 220); color: white; border: 1px solid #555; "
+            "border-radius: 5px; padding: 2px; selection-background-color: #0078d7;"
+        )
+        self.cursor_link_combo.move(10, 120)  # Moved lower
+        self.cursor_link_combo.setFixedWidth(180)
+        self.update_cursor_link_options()
+        self.cursor_link_combo.currentIndexChanged.connect(self.update_cursor_link)
+        self.cursor_link_combo.show()
+        
+        # Connect cursor signals
+        self.cursor1.sigPositionChanged.connect(self.on_cursor1_moved)
+        self.cursor2.sigPositionChanged.connect(self.on_cursor2_moved)
+        
+        # Connect plot's viewRange changed signal to update cursor positions
+        self.plot.getViewBox().sigXRangeChanged.connect(self.update_cursor_positions)
+        
+        # Initial update of cursor info
+        self.update_cursor_info()
+        
+    def on_cursor1_moved(self):
+        """Update relative position when cursor is moved by user"""
+        if self.cursor1 is not None:
+            x_range = self.plot.getViewBox().viewRange()[0]
+            x_span = x_range[1] - x_range[0]
+            # Calculate relative position (0.0 to 1.0)
+            if x_span > 0:
+                self.cursor1_rel_pos = (self.cursor1.value() - x_range[0]) / x_span
+            self.update_cursor_info()
+            
+    def on_cursor2_moved(self):
+        """Update relative position when cursor is moved by user"""
+        if self.cursor2 is not None:
+            x_range = self.plot.getViewBox().viewRange()[0]
+            x_span = x_range[1] - x_range[0]
+            # Calculate relative position (0.0 to 1.0)
+            if x_span > 0:
+                self.cursor2_rel_pos = (self.cursor2.value() - x_range[0]) / x_span
+            self.update_cursor_info()
+            
+    def update_cursor_positions(self, *args):
+        """Update cursor positions based on their relative positions when view changes"""
+        if not self.cursors_active or self.cursor1 is None:
+            return
+            
+        # Get current view range
+        x_range = self.plot.getViewBox().viewRange()[0]
+        x_span = x_range[1] - x_range[0]
+        
+        # Update cursor positions based on their relative positions
+        # Block signals temporarily to avoid infinite recursion
+        self.cursor1.blockSignals(True)
+        self.cursor2.blockSignals(True)
+        
+        self.cursor1.setValue(x_range[0] + x_span * self.cursor1_rel_pos)
+        self.cursor2.setValue(x_range[0] + x_span * self.cursor2_rel_pos)
+        
+        self.cursor1.blockSignals(False)
+        self.cursor2.blockSignals(False)
+        
+        # Update the cursor info
+        self.update_cursor_info()
+
+    def show_cursors(self):
+        """Show existing cursor elements."""
+        if self.cursor1 is not None:
+            self.cursor1.show()
+            self.cursor2.show()
+            self.cursor_info_label.show()
+            self.cursor_link_combo.show()
+            self.update_cursor_link_options()
+            self.update_cursor_info()
+
+    def hide_cursors(self):
+        """Hide cursor elements without deleting them."""
+        if self.cursor1 is not None:
+            self.cursor1.hide()
+            self.cursor2.hide()
+            self.cursor_info_label.hide()
+            self.cursor_link_combo.hide()
+
+    def remove_cursors(self):
+        """Remove cursor elements completely."""
+        if self.cursor1 is not None:
+            self.plot.removeItem(self.cursor1)
+            self.plot.removeItem(self.cursor2)
+            self.cursor1 = None
+            self.cursor2 = None
+        
+        if self.cursor_info_label is not None:
+            self.cursor_info_label.deleteLater()
+            self.cursor_info_label = None
+            
+        if self.cursor_link_combo is not None:
+            self.cursor_link_combo.deleteLater()
+            self.cursor_link_combo = None
+            
+        self.cursor_linked_signal = None
+
+    def update_cursor_link_options(self):
+        """Update the options in the cursor link combo box."""
+        if self.cursor_link_combo is None:
+            return
+        
+        current_linked = self.cursor_linked_signal
+        
+        self.cursor_link_combo.blockSignals(True)
+        self.cursor_link_combo.clear()
+        self.cursor_link_combo.addItem("Not linked")
+        
+        # Add all signals to the combo box
+        for i, signal in enumerate(self.signal_keys_assigned, 1):
+            self.cursor_link_combo.addItem(f"{get_signal_name(signal)}")
+            # Store the signal key as user data
+            self.cursor_link_combo.setItemData(i, signal)
+            
+            # If this was the previously linked signal, select it
+            if signal == current_linked:
+                self.cursor_link_combo.setCurrentIndex(i)
+        
+        self.cursor_link_combo.blockSignals(False)
+
+    def update_cursor_link(self, index):
+        """Update the variable linked to cursors."""
+        if index == 0:
+            self.cursor_linked_signal = None
+        else:
+            # Get the signal key stored as user data
+            self.cursor_linked_signal = self.cursor_link_combo.itemData(index)
+        
+        self.update_cursor_info()
+
+    def update_cursor_info(self):
+        """Update cursor measurement information."""
+        if not self.cursors_active or self.cursor1 is None or not self.cursor1.isVisible():
+            return
+            
+        t1 = self.cursor1.value()
+        t2 = self.cursor2.value()
+        delta_t = t2 - t1
+        
+        v1 = None
+        v2 = None
+        delta_v = None
+        
+        # Find values at cursor positions if linked to a signal
+        if self.cursor_linked_signal and self.cursor_linked_signal in data_history:
+            # Get data for the linked signal
+            data = data_history[self.cursor_linked_signal]
+            if data:
+                # Find closest data points to cursor positions
+                if len(data) > 0:
+                    # Find value at cursor1
+                    closest_idx1 = min(range(len(data)), key=lambda i: abs(data[i][1] - t1))
+                    v1 = data[closest_idx1][0]
+                    
+                    # Find value at cursor2
+                    closest_idx2 = min(range(len(data)), key=lambda i: abs(data[i][1] - t2))
+                    v2 = data[closest_idx2][0]
+                    
+                    delta_v = v2 - v1
+        
+        # Build the information text with highlighted values
+        info_text = []
+        info_text.append(f"<span style='color:#ff5555;'>t1:</span> {t1:.3f}s")
+        if v1 is not None:
+            info_text[0] += f", <span style='color:#ff5555;'>v1:</span> {v1:.3f}"
+            
+        info_text.append(f"<span style='color:#5555ff;'>t2:</span> {t2:.3f}s")
+        if v2 is not None:
+            info_text[1] += f", <span style='color:#5555ff;'>v2:</span> {v2:.3f}"
+            
+        info_text.append(f"<span style='color:#55ff55;'>Δt:</span> {delta_t:.3f}s")
+        if delta_v is not None:
+            info_text[2] += f", <span style='color:#55ff55;'>Δv:</span> {delta_v:.3f}"
+            
+        # Add rate of change if we have both delta_t and delta_v
+        if delta_v is not None and delta_t != 0:
+            rate = delta_v / delta_t
+            info_text.append(f"<span style='color:#ffaa55;'>Rate:</span> {rate:.3f}/s")
+            
+        # Update the label with HTML formatting
+        self.cursor_info_label.setText("<br>".join(info_text))
+        self.cursor_info_label.adjustSize()
 
     def update_display_text_size(self, new_size):
         """Update display text size and refresh styles for display widgets."""
@@ -543,20 +818,6 @@ class DynamicPlot(QtWidgets.QWidget):
         for signal, (container, name_label, output_field) in self.rx_widgets.items():
             name_label.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
             output_field.setStyleSheet(f"font-size: {self.display_text_size}px; font-weight: bold;")
-
-    def update_cursor_info(self):
-        # Retrieve positions.
-        t1 = self.cursor1_v.value()
-        t2 = self.cursor2_v.value()
-        y1 = self.cursor1_h.value()
-        y2 = self.cursor2_h.value()
-        delta_t = abs(t2 - t1)
-        delta_y = abs(y2 - y1)
-        info_text = f"t1: {t1:.3f}, t2: {t2:.3f}, Δt: {delta_t:.3f}\n" \
-                    f"y1: {y1:.3f}, y2: {y2:.3f}, Δy: {delta_y:.3f}"
-        self.cursor_info.setText(info_text)
-        # Position info text near the upper left cursor.
-        self.cursor_info.setPos(t1, y2)
 
     def process_text_size_edit(self):
         try:
