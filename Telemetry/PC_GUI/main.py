@@ -1,191 +1,305 @@
 #!/usr/bin/env python3
-from config import BAUD_RATE, UPDATE_INTERVAL_MS, PLOT_UPDATE_INTERVAL_MS, MAX_POINTS
+"""
+e-Tech Sailing Telemetry GUI
+===========================
+
+Main application entry point for the telemetry visualization system.
+"""
 
 import sys
 import time
-import numpy as np
-import pyqtgraph as pg
+from pathlib import Path
 from PyQt6 import QtWidgets, QtCore, QtGui
-import threading
 
-from signals import SIGNAL_KEYS
-from data import data_history, start_time
-from plot import DynamicPlot
-from tiles import TilingArea
-from logger import *
-from focus import FocusManager
-from menu import setup_menu_bar
-
-# Import the new communication module
-from comm import SerialComm, comm
-
-# --- Global Logging Variables ---
-logging_active = False
-logging_start_time = None
-logging_vars = []  # Captured signal keys for logging when logging starts.
-csv_file = None
-csv_writer = None
-
-# Global flag to freeze/unfreeze data updates.
-freeze_plots = False
-
-# --- Application Setup ---
-app = QtWidgets.QApplication([])
-
-# Main window setup
-main_window = QtWidgets.QMainWindow()
-main_window.setWindowTitle("e-Tech Sailing Telemetry Logger")
-main_window.resize(1400, 800)
-
-# Create the central widget and layout (we won't add the indicator here)
-central_widget = QtWidgets.QWidget()
-main_window.setCentralWidget(central_widget)
-central_layout = QtWidgets.QHBoxLayout(central_widget)
-central_widget.setLayout(central_layout)
-
-# --- Left Column: Variables List and CSV Logger ---
-left_widget = QtWidgets.QWidget()
-left_layout = QtWidgets.QVBoxLayout(left_widget)
-left_layout.setContentsMargins(5, 5, 5, 5)
-left_layout.setSpacing(5)
+# Import from the refactored telemetry_gui package
+from telemetry_gui.utils.config import CONFIG
+from telemetry_gui.data.signals import SignalDefinitions, SignalsList
+from telemetry_gui.data.data_manager import DataManager
+from telemetry_gui.communication.comm_manager import CommunicationManager, SerialProtocol
+from telemetry_gui.ui.focus_manager import FocusManager
+from telemetry_gui.ui.logger_widget import CSVLoggerWidget, TerminalLogWidget
+from telemetry_gui.ui.plot_widget import DynamicPlot
+from telemetry_gui.ui.tiling_area import TilingArea
+from telemetry_gui.ui.menu_system import setup_menu_system
 
 
-
-class TerminalLogWidget(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.text_edit = QtWidgets.QPlainTextEdit()
-        self.text_edit.setReadOnly(True)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.text_edit)
-
-    def write(self, msg):
-        # redirect both prints and errors
-        self.text_edit.appendPlainText(msg.rstrip())
-
-    def flush(self):
-        pass
-
-
-log_widget          = TerminalLogWidget()
-signals_list = SignalsList()
-left_layout.addWidget(signals_list)
-
-csv_logger_widget = CSVLoggerWidget()
-left_layout.addWidget(csv_logger_widget)
-# Add them with equal stretch so they each take 1/3 of the space
-left_layout.addWidget(log_widget,        1)
-left_layout.addWidget(signals_list,      1)
-left_layout.addWidget(csv_logger_widget, 1)
-
-# And then right after you show the window, redirect stdout/stderr
-sys.stdout = log_widget
-sys.stderr = log_widget
-
-# --- Middle Column: Plot Area (Tiling Area) ---
-tiling_area = TilingArea()
-
-# --- Create Horizontal Splitter ---
-main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
-central_layout.addWidget(main_splitter)
-main_splitter.addWidget(left_widget)
-main_splitter.addWidget(tiling_area)
-main_splitter.setStretchFactor(0, 1)
-main_splitter.setStretchFactor(1, 3)
-main_splitter.setStretchFactor(2, 1)
-
-
-# --- Connect CSV Logger Button ---
-csv_logger_widget.log_button.clicked.connect(lambda: toggle_logging(csv_logger_widget))
-
-# --- Setup Menu Bar (called only once) ---
-setup_menu_bar(main_window, tiling_area)
-
-# --- Create Indicators in Menu Bar Corner ---
-# Freeze indicator (shows pause status)
-freeze_indicator = QtWidgets.QLabel()
-freeze_indicator.setFixedSize(20, 20)  # enforce circular dimensions
-freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
-
-# OK indicator (now a button to open the serial port selection popup)
-ok_indicator = QtWidgets.QPushButton("")
-ok_indicator.setFixedSize(20, 20)  # enforce circular dimensions
-ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
-ok_indicator.setFlat(True)
-
-# Create the communication instance and wire up the connection button.
-ok_indicator.clicked.connect(comm.change_connection)
-
-# Container for both indicators with some margins.
-corner_container = QtWidgets.QWidget()
-corner_layout = QtWidgets.QHBoxLayout(corner_container)
-corner_layout.setContentsMargins(5, 0, 5, 0)
-corner_layout.setSpacing(10)
-corner_layout.addWidget(freeze_indicator)
-corner_layout.addWidget(ok_indicator)
-main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
-
-def update():
-    # Log data (every new data point has been appended by the serial thread).
-    log_data(data_history)
-
-    # Update indicators based on the communication connection and last OK time.
-    if not comm.is_connected() or time.time() - comm.last_ok_time > 1:
-        ok_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
-    else:
-        ok_indicator.setStyleSheet("background-color: green; border-radius: 10px;")
-
-    if freeze_plots:
-        freeze_indicator.setStyleSheet("background-color: blue; border-radius: 10px;")
-    else:
-        freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
-
-# --- Plot Update Function ---
-
-def update_plots():
-    if not freeze_plots:
-        for plot in tiling_area.plots.keys():
-            plot.update_plot(data_history)
-
-# --- Timers ---
-
-main_timer = QtCore.QTimer()
-main_timer.timeout.connect(update)
-main_timer.start(UPDATE_INTERVAL_MS)
-
-plot_timer = QtCore.QTimer()
-plot_timer.timeout.connect(update_plots)
-plot_timer.start(PLOT_UPDATE_INTERVAL_MS)
-
-def add_variable_to_selected(item):
-    signal = item.data(QtCore.Qt.ItemDataRole.UserRole)
-    active_widget = FocusManager.get_active()
-    if active_widget is None:
-        return
-    if isinstance(active_widget, CSVLoggerWidget):
-        active_widget.toggle_signal(signal)
-    else:
-        if signal not in active_widget.signal_keys_assigned:
-            active_widget.add_signal(signal)
+class TelemetryApplication:
+    """Main application class for the telemetry GUI."""
+    
+    def __init__(self):
+        """Initialize the application and its components."""
+        # Create the application instance
+        self.app = QtWidgets.QApplication(sys.argv)
+        self.app.setApplicationName("e-Tech Sailing Telemetry Logger")
+        
+        # Initialize core subsystems
+        self.signal_definitions = SignalDefinitions(CONFIG['database_file'])
+        self.data_manager = DataManager(max_points=CONFIG['max_points'])
+        self.data_manager.initialize_signals(self.signal_definitions.get_all_keys())
+        
+        # Initialize communication
+        self.comm_manager = CommunicationManager(
+            protocol=SerialProtocol(baud_rate=CONFIG['baud_rate'])
+        )
+        
+        # Register data callback
+        self.comm_manager.register_data_callback(self._on_data_received)
+        
+        # Flag to freeze/unfreeze plot updates
+        self.freeze_plots = False
+        
+        # Setup UI
+        self._setup_ui()
+        
+        # Setup timer for periodic updates
+        self._setup_timers()
+        
+    def _setup_ui(self):
+        """Setup the application's user interface."""
+        # Main window setup
+        self.main_window = QtWidgets.QMainWindow()
+        self.main_window.setWindowTitle("e-Tech Sailing Telemetry Logger")
+        self.main_window.resize(1400, 800)
+        
+        # Create central widget and layout
+        self.central_widget = QtWidgets.QWidget()
+        self.main_window.setCentralWidget(self.central_widget)
+        central_layout = QtWidgets.QHBoxLayout(self.central_widget)
+        
+        # --- Left Column: Variables List, Logger and Terminal ---
+        left_widget = QtWidgets.QWidget()
+        left_layout = QtWidgets.QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(5, 5, 5, 5)
+        left_layout.setSpacing(5)
+        
+        # Create widgets for the left panel
+        self.terminal_log = TerminalLogWidget()
+        
+        signals_group = QtWidgets.QGroupBox("Signals")
+        signals_layout = QtWidgets.QVBoxLayout(signals_group)
+        self.signals_list = SignalsList(self.signal_definitions)
+        signals_layout.addWidget(self.signals_list)
+        
+        self.csv_logger = CSVLoggerWidget(self.data_manager)
+        
+        # Add widgets to the left panel with proportional sizes
+        left_layout.addWidget(self.terminal_log, 1)  # Smaller
+        left_layout.addWidget(signals_group, 2)      # Larger
+        left_layout.addWidget(self.csv_logger, 1)    # Smaller
+        
+        # --- Right Column: Plot Area (Tiling Area) ---
+        self.tiling_area = TilingArea()
+        # Provide data and communication managers to tiling area for plot creation
+        self.tiling_area.data_manager = self.data_manager
+        self.tiling_area.comm_manager = self.comm_manager
+        
+        # --- Create Horizontal Splitter ---
+        self.main_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        central_layout.addWidget(self.main_splitter)
+        self.main_splitter.addWidget(left_widget)
+        self.main_splitter.addWidget(self.tiling_area)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 3)
+        
+        # Setup menu system
+        self.menu_system = setup_menu_system(self.main_window, self.tiling_area)
+        
+        # Connect menu actions that should interact with the application
+        self._connect_menu_actions()
+        
+        # Setup status indicators
+        self._setup_indicators()
+        
+        # Connect signals
+        self._connect_signals()
+        
+        # Initial plots
+        self.tiling_area.add_initial_row()
+        
+        # Redirect stdout/stderr to our terminal_log widget
+        sys.stdout = self.terminal_log
+        sys.stderr = self.terminal_log
+        
+        # Print startup message
+        print(f"e-Tech Sailing Telemetry Logger started")
+        
+    def _connect_menu_actions(self):
+        """Connect menu actions that should interact with the main application."""
+        # Find the "Clear All Data" action and connect it to our handler
+        for action in self.main_window.findChildren(QtGui.QAction):
+            if action.text() == "Clear &All Data":
+                action.triggered.connect(self._clear_all_data)
+                
+    def _setup_indicators(self):
+        """Setup status indicators in the menu bar."""
+        # Freeze indicator (shows pause status)
+        self.freeze_indicator = QtWidgets.QLabel()
+        self.freeze_indicator.setFixedSize(20, 20)
+        self.freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
+        self.freeze_indicator.setToolTip("Plot Updates Status: Running")
+        
+        # Connection indicator (button to toggle connection)
+        self.connection_indicator = QtWidgets.QPushButton("")
+        self.connection_indicator.setFixedSize(20, 20)
+        self.connection_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
+        self.connection_indicator.setFlat(True)
+        self.connection_indicator.setToolTip("Serial Connection: Disconnected")
+        
+        # Status text
+        self.status_label = QtWidgets.QLabel("Ready")
+        
+        # Container for indicators with some margins
+        corner_container = QtWidgets.QWidget()
+        corner_layout = QtWidgets.QHBoxLayout(corner_container)
+        corner_layout.setContentsMargins(5, 0, 5, 0)
+        corner_layout.setSpacing(10)
+        corner_layout.addWidget(self.status_label)
+        corner_layout.addWidget(self.freeze_indicator)
+        corner_layout.addWidget(self.connection_indicator)
+        
+        # Add to menu bar
+        self.main_window.menuBar().setCornerWidget(corner_container, QtCore.Qt.Corner.TopRightCorner)
+        
+    def _connect_signals(self):
+        """Connect UI signals to handlers."""
+        # Connection indicator click
+        self.connection_indicator.clicked.connect(self._toggle_connection)
+        
+        # Signal list double-click
+        self.signals_list.itemDoubleClicked.connect(self._add_variable_to_selected)
+        
+        # Override key press event for spacebar to freeze/unfreeze
+        self.original_keyPressEvent = self.main_window.keyPressEvent
+        self.main_window.keyPressEvent = self._custom_keyPressEvent
+        
+    def _setup_timers(self):
+        """Setup timers for periodic updates."""
+        # Main timer for status updates
+        self.main_timer = QtCore.QTimer()
+        self.main_timer.timeout.connect(self._update)
+        self.main_timer.start(CONFIG['update_interval_ms'])
+        
+        # Plot timer for visualization updates
+        self.plot_timer = QtCore.QTimer()
+        self.plot_timer.timeout.connect(self._update_plots)
+        self.plot_timer.start(CONFIG['plot_update_interval_ms'])
+        
+    def _on_data_received(self, key, value, timestamp):
+        """
+        Handle received data from the communication manager.
+        
+        Args:
+            key: Signal key
+            value: Signal value
+            timestamp: Receive timestamp
+        """
+        # Add to the data store
+        self.data_manager.add_data_point(key, value)
+        
+    def _update(self):
+        """Periodic update for logging and indicators."""
+        # Log data point if logging is active
+        self.data_manager.log_data_point()
+        
+        # Update indicators
+        self._update_indicators()
+        
+    def _update_plots(self):
+        """Update the plot displays."""
+        if not self.freeze_plots:
+            for plot in self.tiling_area.plots.keys():
+                plot.update_plot()
+                
+    def _update_indicators(self):
+        """Update status indicators."""
+        # Connection status
+        if not self.comm_manager.is_connected():
+            self.connection_indicator.setStyleSheet("background-color: red; border-radius: 10px;")
+            self.connection_indicator.setToolTip("Serial Connection: Disconnected")
+        elif time.time() - self.comm_manager.last_ok_time > 1.0:
+            self.connection_indicator.setStyleSheet("background-color: orange; border-radius: 10px;")
+            self.connection_indicator.setToolTip("Serial Connection: No heartbeat")
         else:
-            active_widget.remove_signal(signal)
+            self.connection_indicator.setStyleSheet("background-color: green; border-radius: 10px;")
+            self.connection_indicator.setToolTip("Serial Connection: Connected")
+        
+        # Freeze status
+        if self.freeze_plots:
+            self.freeze_indicator.setStyleSheet("background-color: blue; border-radius: 10px;")
+            self.freeze_indicator.setToolTip("Plot Updates: Paused (Press Space to resume)")
+        else:
+            self.freeze_indicator.setStyleSheet("background-color: lightgray; border-radius: 10px;")
+            self.freeze_indicator.setToolTip("Plot Updates: Running (Press Space to pause)")
+            
+    def _toggle_connection(self):
+        """Toggle the communication connection state."""
+        is_connected = self.comm_manager.toggle_connection()
+        self.status_label.setText("Connected" if is_connected else "Disconnected")
+        
+    def _add_variable_to_selected(self, item):
+        """
+        Add or remove a variable to the currently selected widget.
+        
+        Args:
+            item: List item containing the signal information
+        """
+        signal = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        active_widget = FocusManager.get_active()
+        
+        if active_widget is None:
+            self.status_label.setText("Select a plot or logger first")
+            return
+            
+        if isinstance(active_widget, CSVLoggerWidget):
+            active_widget.toggle_signal(signal)
+            self.status_label.setText(f"Toggled {signal} in Logger")
+        elif isinstance(active_widget, DynamicPlot):
+            if signal not in active_widget.signal_keys_assigned:
+                active_widget.add_signal(signal)
+                self.status_label.setText(f"Added {signal} to plot")
+            else:
+                active_widget.remove_signal(signal)
+                self.status_label.setText(f"Removed {signal} from plot")
+        else:
+            self.status_label.setText("Cannot add signals to this widget")
+                
+    def _custom_keyPressEvent(self, event):
+        """
+        Handle custom key press events.
+        
+        Args:
+            event: Key press event
+        """
+        if event.key() == QtCore.Qt.Key.Key_Space:
+            self.freeze_plots = not self.freeze_plots
+            self.status_label.setText("Plot updates paused" if self.freeze_plots else "Plot updates resumed")
+        else:
+            self.original_keyPressEvent(event)
+            
+    def _clear_all_data(self):
+        """Clear all data from the application."""
+        reply = QtWidgets.QMessageBox.question(
+            self.main_window, "Clear All Data",
+            "Are you sure you want to clear all data?",
+            QtWidgets.QMessageBox.StandardButton.Yes | 
+            QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No
+        )
+        
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            self.data_manager.clear_data()
+            self.status_label.setText("All data cleared")
+            
+    def run(self):
+        """Run the application."""
+        # Show the main window
+        self.main_window.show()
+        
+        # Exit when app execution ends
+        return self.app.exec()
+        
 
-signals_list.itemDoubleClicked.connect(add_variable_to_selected)
-
-tiling_area.add_initial_row()
-
-original_keyPressEvent = main_window.keyPressEvent
-def custom_keyPressEvent(event):
-    global freeze_plots
-    if event.key() == QtCore.Qt.Key.Key_Space:
-        freeze_plots = not freeze_plots
-    else:
-        original_keyPressEvent(event)
-main_window.keyPressEvent = custom_keyPressEvent
-
-# Start the communication reader thread
-comm.start_reader()
-
-main_window.show()
-sys.exit(app.exec())
+# Entry point
+if __name__ == "__main__":
+    app = TelemetryApplication()
+    sys.exit(app.run())

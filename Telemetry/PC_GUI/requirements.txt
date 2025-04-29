@@ -1,5 +1,0 @@
-numpy==2.2.4
-pandas==2.2.3
-PyQt6==6.9.0
-pyqtgraph==0.13.7
-pyserial==3.5
