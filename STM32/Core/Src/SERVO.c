@@ -13,6 +13,10 @@
 // Define servo pulse parameters.
 #define SERVO_PULSE_MIN_MS    0.6F
 #define SERVO_PULSE_MAX_MS    2.4F
+
+#define TRIM_PULSE_MIN_MS     0.85F
+#define TRIM_PULSE_MAX_MS     2.05F
+
 #define TIMER_PERIOD          59999.0F
 #define TIMER_FREQ            20.0F  // in ms
 
@@ -38,6 +42,12 @@ static float map(float x, float in_min, float in_max, float out_min, float out_m
 // to the PWM pulse width.
 uint32_t servo_angle_to_pulse(float servo_angle, float servo_range) {
     float pulse_ms = map(servo_angle, 0.0F, servo_range, SERVO_PULSE_MIN_MS, SERVO_PULSE_MAX_MS); // min angle is 0
+    float compare_val = pulse_ms * TIMER_PERIOD / TIMER_FREQ;
+    return (uint32_t) compare_val;
+}
+
+uint32_t servo_angle_to_pulse_trim(float servo_angle, float servo_range) {
+    float pulse_ms = map(servo_angle, 0.0F, servo_range, TRIM_PULSE_MIN_MS, TRIM_PULSE_MAX_MS); // min angle is 0
     float compare_val = pulse_ms * TIMER_PERIOD / TIMER_FREQ;
     return (uint32_t) compare_val;
 }
@@ -142,7 +152,7 @@ void set_servo_rudder(float servo_angle) {
 }
 
 void set_servo_trim(float servo_angle) {
-    uint32_t pulse = servo_angle_to_pulse(servo_angle, TRIM_SERVO_RANGE);
+    uint32_t pulse = servo_angle_to_pulse_trim(servo_angle, TRIM_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, TRIM_CHANNEL, pulse);
 }
 
