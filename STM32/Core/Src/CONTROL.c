@@ -83,8 +83,8 @@ static float clamp_with_integrator(float unsat, float *integrator, float Kp, flo
 static ControlData_t direct_input_control(void) {
     ControlData_t c = {0};
     c.rudder = map_radio(get_radio_ch1(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
-    c.trim   = map_radio(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
-    c.twist  = map_radio(get_radio_ch3(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
+    c.trim   = map_radio(get_radio_ch3(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    c.twist  = map_radio(get_radio_ch2(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
     c.extra  = map_radio(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
     return c;
 }
@@ -120,8 +120,8 @@ static float yaw_rate_controller(float current_rate) {
 
 static ControlData_t auto_control_mode1(void) {
     ControlData_t c = {0};
-    c.rudder = map_radio(get_radio_ch1(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
-    c.trim   = map_radio(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    c.rudder = map_radio(get_radio_ch2(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
+    c.trim   = map_radio(get_radio_ch3(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
     // maintain zero roll
     desired_roll = 0.0f;
     c.twist  = roll_controller(imu.roll);
@@ -135,9 +135,9 @@ static ControlData_t auto_control_mode2(void) {
     desired_yaw_rate = map_radio(get_radio_ch1(), MIN_YAW_RATE, MAX_YAW_RATE);
     c.rudder = yaw_rate_controller(imu.gyroZ);
 
-    c.trim   = map_radio(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    c.trim   = map_radio(get_radio_ch3(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
     // Twist direct mapping
-    c.twist  = map_radio(get_radio_ch3(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
+    c.twist  = map_radio(get_radio_ch2(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
     c.extra  = 0.0f;
     return c;
 }
@@ -146,7 +146,7 @@ static ControlData_t auto_control_mode3(void) {
     ControlData_t c = {0};
     desired_yaw_rate = map_radio(get_radio_ch1(), MIN_YAW_RATE, MAX_YAW_RATE);
     c.rudder = yaw_rate_controller(imu.gyroZ);
-    c.trim   = map_radio(get_radio_ch2(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    c.trim   = map_radio(get_radio_ch3(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
     desired_roll = 0.0f;
     c.twist  = roll_controller(imu.roll);
     c.extra  = 0.0f;
