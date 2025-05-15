@@ -82,8 +82,8 @@ static float clamp_with_integrator(float unsat, float *integrator, float Kp, flo
 
 static ControlData_t direct_input_control(void) {
     ControlData_t c = {0};
-    c.rudder = map_radio(get_radio_ch1(), RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
-    c.trim   = map_radio(get_radio_ch3(), TRIM_MIN_ANGLE, TRIM_MAX_ANGLE);
+    c.rudder = map_radio(get_radio_ch1(), RUDDER_MAX_ANGLE, RUDDER_MIN_ANGLE);
+    c.trim   = map_radio(get_radio_ch3(), TRIM_MAX_ANGLE, TRIM_MIN_ANGLE);
     c.twist  = map_radio(get_radio_ch2(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
     c.extra  = map_radio(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
     return c;
@@ -201,6 +201,7 @@ void control(void) {
         set_servo_twist (tel.twist_servo_angle);
         set_servo_trim  (tel.trim_servo_angle);
         set_servo_extra (tel.extra_servo_angle);
+        update_radio_calibration();
         return;
     }
 

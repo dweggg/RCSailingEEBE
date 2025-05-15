@@ -31,7 +31,7 @@
 
 // Servo conversion limits (defines how the mechanical angle maps to servo angle).
 #define RUDDER_SERVO_RANGE    180.0F
-#define TRIM_SERVO_RANGE      2160.0F //6*360
+#define TRIM_SERVO_RANGE      1080.0F //6*360/2
 #define TWIST_SERVO_RANGE     180.0F
 #define EXTRA_SERVO_RANGE     180.0F
 

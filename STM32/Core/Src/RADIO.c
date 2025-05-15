@@ -20,7 +20,7 @@ RadioData_t radioDataSent = {0};
 
 // Initialize calibration boundaries to extreme values.
 RadioCalibration_t radioCalibration = {
-    .ch1_min = 1228, .ch1_max = 1726,
+    .ch1_min = 1328, .ch1_max = 1726,
     .ch2_min = 1227, .ch2_max = 1722,
     .ch3_min = 981, .ch3_max = 1973,
     .ch4_min = 0xFFFFFFFF, .ch4_max = 0

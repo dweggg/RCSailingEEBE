@@ -47,7 +47,7 @@ uint32_t servo_angle_to_pulse(float servo_angle, float servo_range) {
 }
 
 uint32_t servo_angle_to_pulse_trim(float servo_angle, float servo_range) {
-    float pulse_ms = map(servo_angle, 0.0F, servo_range, TRIM_PULSE_MIN_MS, TRIM_PULSE_MAX_MS); // min angle is 0
+    float pulse_ms = map(servo_angle, 0.0F, 2160.0F, TRIM_PULSE_MIN_MS, TRIM_PULSE_MAX_MS); // min angle is 0
     float compare_val = pulse_ms * TIMER_PERIOD / TIMER_FREQ;
     return (uint32_t) compare_val;
 }
@@ -130,7 +130,7 @@ void set_rudder(float mech_angle) {
 
 void set_trim(float mech_angle) {
     float servo_angle = mech_to_servo_trim(mech_angle);
-    uint32_t pulse = servo_angle_to_pulse(servo_angle, TRIM_SERVO_RANGE);
+    uint32_t pulse = servo_angle_to_pulse_trim(servo_angle, TRIM_SERVO_RANGE);
     __HAL_TIM_SET_COMPARE(&htim4, TRIM_CHANNEL, pulse);
 }
 
