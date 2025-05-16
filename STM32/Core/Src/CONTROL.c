@@ -84,7 +84,7 @@ static ControlData_t direct_input_control(void) {
     ControlData_t c = {0};
     c.rudder = map_radio(get_radio_ch1(), RUDDER_MAX_ANGLE, RUDDER_MIN_ANGLE);
     c.trim   = map_radio(get_radio_ch3(), TRIM_MAX_ANGLE, TRIM_MIN_ANGLE);
-    c.twist  = map_radio(get_radio_ch2(), TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
+    c.twist  = map_radio(fabs(get_radio_ch2()-0.5F)*2.0F, TWIST_MIN_ANGLE, TWIST_MAX_ANGLE);
     c.extra  = map_radio(get_radio_ch4(), EXTRA_MIN_ANGLE, EXTRA_MAX_ANGLE);
     return c;
 }

@@ -52,51 +52,10 @@ uint32_t servo_angle_to_pulse_trim(float servo_angle, float servo_range) {
     return (uint32_t) compare_val;
 }
 
-/*
- * For the rudder, we use lookup arrays to map mechanical angles to servo angles.
- * (These values should now be defined in the calibrated [0, RUDDER_SERVO_RANGE] space.)
- */
-static const float rudder_mech_angles[11] = {
-    -35.00, -27.22, -19.44, -11.67, -3.89, 0.00, 3.89, 11.67, 19.44, 27.22, 35.00
-};
-
-// Calibrated servo angles (0 to RUDDER_SERVO_RANGE) for the corresponding mechanical angles.
-static const float rudder_servo_angles[11] = {
-    150.06, 136.15, 124.51, 113.64, 102.98,  97.61,  92.19,  81.04,  69.27,  56.49,  41.98
-};
-
 float mech_to_servo_rudder(float mech_angle) {
-    // Handle out-of-range cases by clamping to the endpoints.
-    if (mech_angle <= RUDDER_MIN_ANGLE) {
-        return rudder_servo_angles[0];
-    }
-    if (mech_angle >= RUDDER_MAX_ANGLE) {
-        return rudder_servo_angles[10];
-    }
+    float sat_angle = saturate(mech_angle, RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE);
+    return map(sat_angle, RUDDER_MIN_ANGLE, RUDDER_MAX_ANGLE, 0.0F, RUDDER_SERVO_RANGE);
 
-    // Find the two nearest points for interpolation.
-    for (int i = 0; i < (sizeof(rudder_mech_angles)/sizeof(rudder_mech_angles[0]) - 1); i++) {
-        if (mech_angle >= rudder_mech_angles[i] && mech_angle <= rudder_mech_angles[i+1]) {
-            // Linear interpolation.
-            float mech_range = rudder_mech_angles[i+1] - rudder_mech_angles[i];
-            float servo_range_interval = rudder_servo_angles[i+1] - rudder_servo_angles[i];
-            float ratio = (mech_angle - rudder_mech_angles[i]) / mech_range;
-            return rudder_servo_angles[i] + (ratio * servo_range_interval);
-        }
-    }
-
-    // Fallback: find the servo angle corresponding to 0° mechanical rudder.
-    float zero_mech_angle = 0.0F;
-    float smallest_diff = fabs(rudder_mech_angles[0] - zero_mech_angle);
-    int zero_index = 0;
-    for (int i = 1; i < (sizeof(rudder_mech_angles)/sizeof(rudder_mech_angles[0])); i++) {
-        float current_diff = fabs(rudder_mech_angles[i] - zero_mech_angle);
-        if (current_diff < smallest_diff) {
-            smallest_diff = current_diff;
-            zero_index = i;
-        }
-    }
-    return rudder_servo_angles[zero_index];
 }
 
 /*
